@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>回忆录小游戏 · 最小Demo</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --ink: #222;
+      --muted: #8b8b8b;
+      --accent: #6b7cff;
+      --ok: #32c48d;
+      --paper: #fff;
+      --shadow: 0 10px 25px rgba(0,0,0,.08);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans CJK JP", "Microsoft YaHei", sans-serif; color: var(--ink); background: radial-gradient(1200px 800px at 50% -10%, #eef1ff 0%, var(--bg) 60%); }
+    .wrap { max-width: 920px; margin: 32px auto; padding: 0 16px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
+    .btn { appearance: none; border: 0; background: var(--accent); color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; box-shadow: var(--shadow); font-weight: 600; }
+    .btn.secondary { background: #e6e9ff; color: #3b42d0; }
+    .book { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; position: relative; overflow: hidden; }
+    .book::before { content:""; position:absolute; inset:0; background: repeating-linear-gradient(90deg, transparent 0 31px, rgba(0,0,0,.03) 31px 32px); pointer-events:none; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+    .slot { position: relative; border: 1px dashed #cbd0dc; border-radius: 12px; background: linear-gradient(180deg,#fff, #fafbff); min-height: 88px; display: flex; align-items: center; justify-content: center; padding: 8px; transition: transform .12s ease, box-shadow .12s ease; cursor: pointer; }
+    .slot:focus-visible { outline: 2px solid #9aa5ff; outline-offset: 2px; }
+    .slot:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(50,60,150,.08); }
+    .slot.locked .hint { color: var(--muted); font-size: 13px; }
+    .slot.unlocked { border: 1px solid #d7ffe9; background: #f7fffb; }
+    .slot.unlocked .word { color: var(--ok); font-weight: 700; letter-spacing: .5px; font-size: 17px; }
+
+    .progress { margin-top: 14px; font-size: 13px; color: #667; }
+    .done { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #e9fff5; color: #1a8b62; display: none; }
+
+    dialog { border: none; border-radius: 12px; padding: 0; box-shadow: var(--shadow); width: min(520px, 92vw); }
+    .dlg { padding: 18px; background: var(--paper); }
+    .dlg h2 { margin: 0 0 8px; font-size: 18px; }
+    .q { margin: 10px 0 14px; color: #333; }
+    .fld { display: flex; gap: 8px; }
+    input[type="text"] { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #d6daf2; font-size: 15px; }
+    .msg { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; }
+    .shake { animation: shake .25s linear; }
+    @keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-3px) } 75% { transform: translateX(3px) } }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #eef1ff; border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+    footer { margin-top: 18px; font-size: 12px; color: #7a7a7a; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>回忆录 · 轻量读心术 Demo</h1>
+      <div class="actions">
+        <button class="btn secondary" id="reset">重置</button>
+      </div>
+    </header>
+
+    <section class="book" aria-label="一本回忆录">
+      <div class="subtitle">点击任意空白格，回答问题以解锁关键词。</div>
+      <div id="grid" class="grid" role="list"></div>
+      <div id="progress" class="progress" aria-live="polite"></div>
+      <div id="done" class="done" role="status">🎉 全部解锁！这页回忆被悄悄点亮了。</div>
+    </section>
+
+    <footer>提示：键盘可用 <span class="kbd">Esc</span> 关闭对话框</footer>
+  </div>
+
+  <dialog id="ask">
+    <form method="dialog" class="dlg" id="dlgForm">
+      <h2>解锁问题</h2>
+      <div id="qText" class="q"></div>
+      <div class="fld">
+        <input id="answer" type="text" placeholder="在这里作答…" autocomplete="off" />
+        <button class="btn" id="submitAns">确定</button>
+      </div>
+      <div id="msg" class="msg"></div>
+      <div class="row">
+        <small>可忽略大小写；支持同义答案</small>
+        <button class="btn secondary" value="cancel">取消</button>
+      </div>
+    </form>
+  </dialog>
+
+<script>
+// ====== 数据：在这里配置问题 / 答案 / 词语 ======
+const QA = [
+  { q: "嘉嘉最喜欢的季节？", a: ["冬季","冬天"], word: "冬天" },
+  { q: "我们都知道嘉嘉过农历生日。那么嘉嘉的生日对应农历哪个节日？", a: ["七夕","七夕节"], word: "七夕" },
+  { q: "嘉嘉最喜欢来自茉莉奶白的哪款饮品？", a: ["针王苹果"], word: "针王苹果" },
+  { q: "我最喜欢的泡泡玛特的IP是？", a: ["sp","skullpanda"], word: "skullpanda" },
+  { q: "那座陪伴嘉嘉度过四年时光的城市是？", a: ["大连","大连市"], word: "大连" },
+  { q: "我们为对方起过四个字的称呼，嘉嘉的是？", a: ["石头小姐","饼干先生"], word: "石头小姐" },
+];
+
+// ====== 生成网格 ======
+const grid = document.getElementById('grid');
+const progress = document.getElementById('progress');
+const done = document.getElementById('done');
+const ask = document.getElementById('ask');
+const qText = document.getElementById('qText');
+const ansInput = document.getElementById('answer');
+const msg = document.getElementById('msg');
+const submitBtn = document.getElementById('submitAns');
+const resetBtn = document.getElementById('reset');
+
+let state = { openedIndex: null, unlocked: Array(QA.length).fill(false), words: Array(QA.length).fill("") };
+
+function renderGrid() {
+  grid.innerHTML = '';
+  QA.forEach((_, i) => {
+    const isOpen = state.unlocked[i];
+    const div = document.createElement('button');
+    div.type = 'button';
+    div.className = `slot ${isOpen ? 'unlocked' : 'locked'}`;
+    div.setAttribute('role','listitem');
+    div.setAttribute('aria-label', isOpen ? `已解锁：${state.words[i]}` : `空白格 ${i+1}`);
+    div.dataset.index = i;
+    div.innerHTML = isOpen ? `<span class="word">${state.words[i]}</span>` : `<span class="hint">点击解锁</span>`;
+    div.addEventListener('click', () => openQuestion(i));
+    grid.appendChild(div);
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const count = state.unlocked.filter(Boolean).length;
+  progress.textContent = `进度：${count} / ${QA.length}`;
+  done.style.display = count === QA.length ? 'block' : 'none';
+}
+
+function openQuestion(i) {
+  state.openedIndex = i;
+  const item = QA[i];
+  qText.textContent = item.q;
+  ansInput.value = '';
+  msg.textContent = '';
+  ask.showModal();
+  setTimeout(() => ansInput.focus(), 0);
+}
+
+function normalize(s){ return (s||'').trim().toLowerCase(); }
+
+function checkAnswer(i, user) {
+  const item = QA[i];
+  const ok = item.a.map(normalize).includes(normalize(user));
+  return ok;
+}
+
+submitBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  const idx = state.openedIndex;
+  if (idx == null) return;
+  const val = ansInput.value;
+  if (!val) { msg.textContent = '请输入答案'; ansInput.classList.add('shake'); setTimeout(()=>ansInput.classList.remove('shake'), 250); return; }
+  if (checkAnswer(idx, val)) {
+    state.unlocked[idx] = true;
+    state.words[idx] = QA[idx].word;
+    ask.close();
+    renderGrid();
+  } else {
+    msg.textContent = '不太对，再想想~';
+    ansInput.classList.add('shake'); setTimeout(()=>ansInput.classList.remove('shake'), 250);
+  }
+});
+
+ask.addEventListener('close', () => { state.openedIndex = null; });
+
+resetBtn.addEventListener('click', () => {
+  state = { openedIndex: null, unlocked: Array(QA.length).fill(false), words: Array(QA.length).fill("") };
+  renderGrid();
+});
+
+// 键盘辅助：Enter 提交
+ansInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { submitBtn.click(); }
+});
+
+renderGrid();
+</script>
+</body>
+</html>
