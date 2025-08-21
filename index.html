@@ -28,10 +28,13 @@
   </style>
 </head>
 <body>
+  <button data-reset-collect style="position:fixed;left:16px;top:16px;padding:6px 10px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;">
+  清空进度
+  </button>
   <!-- 计数提示 -->
-<div id="collect-counter" style="position:fixed;right:16px;top:16px;background:#0009;color:#fff;padding:6px 10px;border-radius:10px;font:14px/1.2 system-ui;">
-  收集：<span data-count>0</span>/<span data-total>7</span>
-</div>
+  <div id="collect-counter" style="position:fixed;right:16px;top:16px;background:#0009;color:#fff;padding:6px 10px;border-radius:10px;font:14px/1.2 system-ui;">
+    收集：<span data-count>0</span>/<span data-total>7</span>
+  </div>
   <h1>雪中记忆小屋</h1>
 
   <div class="icons">
@@ -41,7 +44,7 @@
             data-link="divination.html"
             data-keepcolor="1"
             style="position:absolute;left:420px;top:280px;width:90px;height:90px;
-                   background:url('assets/divination.svg') center/contain no-repeat;border:0;cursor:pointer;"
+                   background:url('assets/divination.png') center/contain no-repeat;border:0;cursor:pointer;"
             aria-label="回忆录游戏"></button>
 
     <!-- 书（回忆录） -->
@@ -62,5 +65,6 @@
   </div>
 
   <footer>点击图标进入游戏</footer>
+
 </body>
 </html>
