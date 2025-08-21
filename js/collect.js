@@ -17,6 +17,35 @@ const state = {
 
 function $$(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
+// 统一根据状态刷新外观 start
+function applyCollectedStyle(el, collected){
+  if (el.dataset.keepcolor === '1') {
+    el.style.opacity = '';
+    el.style.filter = '';
+  } else {
+    el.style.opacity = 0.45;
+    el.style.filter = 'grayscale(60%)';
+  }
+  el.dataset.collected = '1';
+}
+
+function clearCollectedStyle(el){
+  el.style.opacity = '';
+  el.style.filter = '';
+  el.removeAttribute('data-collected');
+}
+
+function refreshVisualsFromState(){
+  const set = state.get();
+  document.querySelectorAll('.collect').forEach(el=>{
+    const id = el.dataset.id;
+    if (!id) return;
+    if (set.has(id)) applyCollectedStyle(el, set);
+    else clearCollectedStyle(el);
+  });
+}
+// 统一根据状态刷新外观 end
+
 function tipToBody(el, text, ms=1200){
   // 把提示挂到 body，避免在小按钮里换行成“竖排”
   const r = el.getBoundingClientRect();
@@ -57,37 +86,39 @@ function styleCollected(el){
 }
 
 function attachHandlers(){
-  const collected = state.get();
+  refreshVisualsFromState();     // ← 初始化先刷新一次
+  // ...（其余保持不变）
 
-  $$('.collect').forEach(el => {
+  document.querySelectorAll('.collect').forEach(el => {
     const id = el.dataset.id;
     if (!id) return;
-
-    if (collected.has(id)) styleCollected(el);
 
     el.addEventListener('click', () => {
       const link = el.dataset.link;
       const already = state.has(id);
 
       if (!already) {
-        // 第一次点击：收集 + 提示，不跳转
-        styleCollected(el);
         state.add(id);
+        applyCollectedStyle(el);
         updateCounter();
         tipToBody(el, link ? '已收集！再次点击进入' : '已收集 ✓', link ? 1500 : 1000);
         return;
       }
 
-      // 已收集：带链接就直接进入；无链接给提示
       if (link) location.href = link;
       else tipToBody(el, '已经收集过啦', 800);
     });
   });
 
-  // 清空按钮（如果页面放了 data-reset 收集按钮）
   const resetBtn = document.querySelector('[data-reset-collect]');
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => { state.reset(); updateCounter(); tipToBody(resetBtn, '已清空进度', 1000); });
+    resetBtn.addEventListener('click', (e) => {
+      e.preventDefault(); // 防止在<form>里触发提交
+      state.reset();
+      refreshVisualsFromState(); // ← 清空后恢复外观
+      updateCounter();
+      tipToBody(resetBtn, '已清空进度', 1000);
+    });
   }
 
   updateCounter();
