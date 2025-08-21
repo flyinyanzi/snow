@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>掷筊 · 最小 Demo</title>
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#10183a; --card:#111830; --ink:#f4f7ff; --muted:#a9b0c7; --accent:#7aa2ff; --ok:#3cd69b; --warn:#ffb24b; --no:#ff6b7b; --shadow:0 10px 30px rgba(0,0,0,.35); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans CJK JP","Microsoft YaHei",sans-serif; color:var(--ink);
+      min-height:100vh; background: radial-gradient(1000px 600px at 50% -20%, #15204d 0%, var(--bg2) 40%, var(--bg1) 100%);
+      overflow-x:hidden;}
+
+    /* 星空点点 */
+    .stars{position:fixed; inset:0; pointer-events:none; background:
+      radial-gradient(2px 2px at 20% 30%, #ffffffaa 20%, transparent 60%),
+      radial-gradient(1.5px 1.5px at 70% 20%, #ffffffaa 20%, transparent 60%),
+      radial-gradient(1.6px 1.6px at 35% 70%, #ffffffaa 20%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 80% 65%, #ffffffaa 20%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 15% 80%, #ffffffaa 20%, transparent 60%);
+      opacity:.7;}
+
+    .wrap{max-width:980px; margin:28px auto; padding:0 16px;}
+
+    header{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px;}
+    h1{font-size:20px; margin:0; font-weight:700; letter-spacing:.4px}
+    .btn{appearance:none; border:0; background:var(--accent); color:#fff; padding:10px 14px; border-radius:10px; cursor:pointer; box-shadow:var(--shadow); font-weight:600}
+    .btn.secondary{background:#2a355c; color:#cdd6ff}
+
+    .card{background:linear-gradient(180deg,#121b38,#0f1730); border:1px solid #223060; border-radius:var(--radius); box-shadow:var(--shadow); padding:18px}
+    .row{display:flex; gap:10px; align-items:center}
+    .grow{flex:1}
+    input[type="text"]{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2e3a6a; background:#0d1430; color:var(--ink); font-size:15px}
+    .tip{font-size:12px; color:var(--muted); margin-top:8px}
+
+    /* 掷筊舞台 */
+    .stage{margin-top:18px; display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:center}
+    .ground{position:relative; height:200px; background: radial-gradient(60% 120% at 50% 110%, #0b1020 40%, #0d1a33 100%); border-radius:14px; border:1px solid #1f2b53; display:flex; align-items:center; justify-content:center; overflow:hidden}
+
+    .bobe{width:84px; height:84px; border-radius:50%/38%; position:relative; transform-style: preserve-3d; transition: transform .8s cubic-bezier(.2,.8,.2,1);}
+    /* 两个面：正面（平面）与背面（弧面） */
+    .bobe::before, .bobe::after{content:""; position:absolute; inset:0; border-radius:50%/38%;}
+    /* 正面：平整偏亮 */
+    .bobe::before{background: radial-gradient(120% 90% at 30% 30%, #fefefe 0%, #f1f1f1 40%, #c2c2c2 100%); box-shadow: inset 0 1px 2px rgba(255,255,255,.5), inset 0 -2px 6px rgba(0,0,0,.25); transform: translateZ(2px)}
+    /* 背面：木纹/暗面 */
+    .bobe::after{background: radial-gradient(140% 100% at 70% 70%, #7a3f1f 0%, #643116 40%, #4a250f 100%); box-shadow: inset 0 8px 18px rgba(0,0,0,.55); transform: rotateY(180deg)}
+
+    /* 朝向：front=正面朝上；back=反面朝上 */
+    .bobe.front{transform: rotateY(0deg)}
+    .bobe.back{transform: rotateY(180deg)}
+
+    .tray{display:flex; gap:24px}
+
+    .actions{display:flex; gap:8px; align-items:center;}
+    .result{margin-top:10px; font-size:15px}
+
+    .shimmer{background:linear-gradient(110deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.22) 15%, rgba(255,255,255,0) 30%); background-size:200% 100%; animation: shimmer 1.2s linear infinite; -webkit-background-clip:text; color:transparent}
+    @keyframes shimmer{0%{background-position-x:200%}100%{background-position-x:-200%}}
+
+    .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #2b396f}
+    .pill.ok{background: rgba(60,214,155,.12); color:#b1ffd9; border-color:#2e7b63}
+    .pill.no{background: rgba(255,107,123,.12); color:#ffd6db; border-color:#874752}
+    .pill.fun{background: rgba(255,178,75,.12); color:#ffe2bf; border-color:#7f5b2e}
+
+    .history{margin-top:16px}
+    .history h3{font-size:14px; color:#c8d1f7; margin:8px 0}
+    .log{display:grid; gap:8px}
+    .item{padding:8px 10px; border-radius:10px; background:#0e1632; border:1px solid #223060; font-size:13px}
+    .item .t{opacity:.75}
+
+    @media (max-width:700px){ .stage{grid-template-columns: 1fr} .tray{gap:14px} .bobe{width:78px;height:78px} }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="wrap">
+    <header>
+      <div class="actions">
+        <button class="btn secondary" onclick="location.href='index.html'">← 返回首页</button>
+      </div>
+      <h1>掷筊 · 星空问神明</h1>
+      <div class="actions">
+        <button class="btn secondary" id="reset">重置</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <input id="q" type="text" class="grow" placeholder="在这里输入你的问题（可留空）" autocomplete="off" />
+        <button class="btn" id="cast">掷筊</button>
+      </div>
+      <div class="tip">结果说明：<span class="pill ok">圣筊=同意</span>、<span class="pill.fun">笑筊=玩笑</span>、<span class="pill no">阴筊=不同意</span></div>
+
+      <div class="stage">
+        <div class="ground">
+          <div class="tray">
+            <div id="b1" class="bobe front" aria-label="第一枚"></div>
+            <div id="b2" class="bobe back" aria-label="第二枚"></div>
+          </div>
+        </div>
+        <div>
+          <div id="result" class="result shimmer">在星空下轻轻掷出你的问题…</div>
+          <div class="actions" style="margin-top:10px">
+            <label class="pill" style="cursor:pointer">
+              <input type="checkbox" id="three" style="margin-right:6px"> 连掷三次自动判定
+            </label>
+          </div>
+          <div class="history">
+            <h3>历史记录</h3>
+            <div id="log" class="log" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+// —— 概率设置（可按喜好调整）——
+const weights = { sheng: 0.5, xiao: 0.2, yin: 0.3 }; // 圣筊/笑筊/阴筊 概率
+
+const $ = sel => document.querySelector(sel);
+const b1 = $('#b1'), b2 = $('#b2');
+const castBtn = $('#cast');
+const resetBtn = $('#reset');
+const qInput = $('#q');
+const res = $('#result');
+const log = $('#log');
+const threeTimes = $('#three');
+
+function weightedPick(map){
+  const entries = Object.entries(map);
+  const sum = entries.reduce((s,[,w])=>s+w,0);
+  let r = Math.random()*sum;
+  for(const [k,w] of entries){ if((r-=w) <= 0) return k; }
+  return entries[entries.length-1][0];
+}
+
+function outcomeToFaces(kind){
+  // 返回两枚的朝向：front=正面朝上；back=反面朝上
+  if(kind==='sheng') return ['front','back'];
+  if(kind==='xiao') return ['front','front'];
+  if(kind==='yin')  return ['back','back'];
+  return ['front','back'];
+}
+
+function kindLabel(kind){
+  if(kind==='sheng') return '圣筊（同意）';
+  if(kind==='xiao') return '笑筊（玩笑）';
+  if(kind==='yin')  return '阴筊（不同意）';
+  return kind;
+}
+
+function kindClass(kind){
+  return kind==='sheng' ? 'ok' : kind==='xiao' ? 'fun' : 'no';
+}
+
+function animateThrow(settle){
+  // 简单旋转动画
+  b1.style.transition = b2.style.transition = 'transform .9s cubic-bezier(.2,.8,.2,1)';
+  const r1 = Math.random()*720 + 360; // 360-1080 deg
+  const r2 = Math.random()*720 + 360;
+  b1.style.transform = `rotateY(${r1}deg)`; 
+  b2.style.transform = `rotateY(${r2}deg)`;
+  setTimeout(()=>{
+    // 清除transform，改用class控制最终朝向
+    b1.style.transform = ''; b2.style.transform = '';
+    b1.classList.remove('front','back');
+    b2.classList.remove('front','back');
+    b1.classList.add(settle[0]);
+    b2.classList.add(settle[1]);
+  }, 900);
+}
+
+function once(){
+  const kind = weightedPick(weights);
+  const faces = outcomeToFaces(kind);
+  animateThrow(faces);
+  const q = qInput.value.trim();
+  const msg = q ? `「${q}」的结果：` : '结果：';
+  res.innerHTML = `${msg}<span class="pill ${kindClass(kind)}">${kindLabel(kind)}</span>`;
+  const item = document.createElement('div');
+  item.className = 'item';
+  const time = new Date().toLocaleTimeString();
+  item.innerHTML = `<div><b>${kindLabel(kind)}</b></div><div class="t">${time}${q?` · ${q}`:''}</div>`;
+  log.prepend(item);
+  return kind;
+}
+
+async function thriceAuto(){
+  // 连掷三次：以多数结果为“判定”，若无多数则以最后一次为准
+  const kinds = [];
+  castBtn.disabled = true;
+  for(let i=0;i<3;i++){
+    kinds.push(once());
+    await new Promise(r=>setTimeout(r, 1100));
+  }
+  castBtn.disabled = false;
+  const tally = kinds.reduce((m,k)=> (m[k]=(m[k]||0)+1, m), {});
+  const sorted = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+  const final = sorted[0][1]===sorted[1]?.[1] ? kinds[2] : sorted[0][0];
+  res.innerHTML += ` <span class="pill ${kindClass(final)}">→ 判定：${kindLabel(final)}</span>`;
+}
+
+castBtn.addEventListener('click', ()=>{
+  if(threeTimes.checked){ thriceAuto(); } else { once(); }
+});
+
+qInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ castBtn.click(); }});
+
+resetBtn.addEventListener('click', ()=>{
+  log.innerHTML = '';
+  res.textContent = '在星空下轻轻掷出你的问题…';
+  b1.classList.remove('front','back'); b2.classList.remove('front','back');
+  b1.classList.add('front'); b2.classList.add('back');
+  qInput.value=''; qInput.focus();
+});
+</script>
+</body>
+</html>
