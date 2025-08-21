@@ -12,21 +12,37 @@
       align-items: center; justify-content: center;
       min-height: 100vh; background: #f0f3ff;
     }
-    h1 { font-size: 24px; margin-bottom: 24px; color: #333; }
+    h1 { font-size: 24px; margin-bottom: 32px; color: #333; }
+    .icons { display: flex; gap: 40px; }
     .icon-btn {
       width: 140px; height: 140px;
-      background: url('memory.svg') center/contain no-repeat;
       border: none; cursor: pointer;
       transition: transform .2s ease;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
     }
     .icon-btn:hover { transform: scale(1.05); }
-    footer { margin-top: 32px; font-size: 12px; color: #888; }
+    footer { margin-top: 40px; font-size: 12px; color: #888; text-align: center; }
   </style>
 </head>
 <body>
   <h1>小游戏合集</h1>
-  <!-- 点击本子图标，跳转到 memory.html -->
-  <button class="icon-btn" onclick="location.href='memory.html'" aria-label="打开回忆录"></button>
-  <footer>点击本子进入回忆录</footer>
+
+  <div class="icons">
+    <!-- 掷筊图标 -->
+    <button class="icon-btn" 
+            style="background-image:url('divination.png')" 
+            onclick="location.href='divination.html'" 
+            aria-label="掷筊游戏"></button>
+
+    <!-- 回忆录图标 -->
+    <button class="icon-btn" 
+            style="background-image:url('memory.svg')" 
+            onclick="location.href='memory.html'" 
+            aria-label="回忆录"></button>
+  </div>
+
+  <footer>点击图标进入游戏</footer>
 </body>
 </html>
