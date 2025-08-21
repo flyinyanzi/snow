@@ -1,9 +1,10 @@
-e<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>小游戏合集 · 首页</title>
+  <title>雪中记忆小屋 · 首页</title>
+  <script defer src="js/collect.js"></script>
   <style>
     body {
       margin: 0;
@@ -27,20 +28,37 @@ e<!doctype html>
   </style>
 </head>
 <body>
-  <h1>小游戏合集</h1>
+  <!-- 计数提示 -->
+<div id="collect-counter" style="position:fixed;right:16px;top:16px;background:#0009;color:#fff;padding:6px 10px;border-radius:10px;font:14px/1.2 system-ui;">
+  收集：<span data-count>0</span>/<span data-total>7</span>
+</div>
+  <h1>雪中记忆小屋</h1>
 
   <div class="icons">
-    <!-- 掷筊图标 -->
-    <button class="icon-btn" 
-            style="background-image:url('assets/divination.png')" 
-            onclick="location.href='divination.html'" 
-            aria-label="掷筊游戏"></button>
+    <!-- 水晶球（掷筊） -->
+    <button class="collect"
+            data-id="crystal-divination"
+            data-link="divination.html"
+            data-keepcolor="1"
+            style="position:absolute;left:420px;top:280px;width:90px;height:90px;
+                   background:url('assets/divination.svg') center/contain no-repeat;border:0;cursor:pointer;"
+            aria-label="回忆录游戏"></button>
 
-    <!-- 回忆录图标 -->
-    <button class="icon-btn" 
-            style="background-image:url('assets/memory.svg')" 
-            onclick="location.href='memory.html'" 
-            aria-label="回忆录"></button>
+    <!-- 书（回忆录） -->
+    <button class="collect"
+            data-id="book-memory"
+            data-link="memory.html"
+            data-keepcolor="1"
+            style="position:absolute;left:240px;top:220px;width:80px;height:80px;
+                   background:url('assets/memory.svg') center/contain no-repeat;border:0;cursor:pointer;"
+            aria-label="回忆录游戏"></button>
+
+    <!-- 示例元素：房间里可收集的小相框（没有页面跳转） -->
+    <button class="collect" 
+            data-id="frame-room"
+            style="position:absolute;left:520px;top:180px;width:64px;height:64px;
+                   background:url('assets/frame.svg') center/contain no-repeat;border:0;cursor:pointer;"
+            aria-label="小相框"></button>
   </div>
 
   <footer>点击图标进入游戏</footer>
