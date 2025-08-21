@@ -1,24 +1,32 @@
 // /js/collect.js
-const STORAGE_KEY = 'demo_collected_v2';
-const TOTAL_ITEMS = 7; // ★房间+雪地合计
+const STORAGE_KEY = 'demo_collected_v3';
+const FIRE_ONCE_KEY = 'demo_fire_once_v3';
+const TOTAL_ITEMS = 7; // ★总数（房间+雪地）
+
+// 用 sessionStorage：关闭页面/浏览器就清零
+const box = sessionStorage;
 
 const state = {
-  set(ids){ localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids])); },
-  get(){ try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); } catch { return new Set(); } },
-  reset(){ localStorage.removeItem(STORAGE_KEY); },
+  set(ids){ box.setItem(STORAGE_KEY, JSON.stringify([...ids])); },
+  get(){ try { return new Set(JSON.parse(box.getItem(STORAGE_KEY) || '[]')); } catch { return new Set(); } },
+  reset(){ box.removeItem(STORAGE_KEY); box.removeItem(FIRE_ONCE_KEY); },
   has(id){ return state.get().has(id); },
   add(id){ const s = state.get(); s.add(id); state.set(s); return s; },
   delete(id){ const s = state.get(); s.delete(id); state.set(s); return s; }
 };
 
-// —— 公共小工具 ——
 function $$(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
-function tip(el, text, ms=1200){
+
+function tipToBody(el, text, ms=1200){
+  // 把提示挂到 body，避免在小按钮里换行成“竖排”
+  const r = el.getBoundingClientRect();
   const t = document.createElement('div');
   t.textContent = text;
-  t.style.cssText = 'position:absolute;left:50%;top:0;transform:translate(-50%,-110%);'
-    + 'background:#0009;color:#fff;padding:4px 8px;border-radius:8px;font:12px system-ui;pointer-events:none;';
-  el.appendChild(t);
+  t.style.cssText =
+    'position:fixed;left:'+ (r.left + r.width/2) +'px;top:'+ (r.top - 10) +'px;transform:translate(-50%,-100%);' +
+    'background:#000b;color:#fff;padding:6px 10px;border-radius:10px;' +
+    'font:12px/1.2 system-ui;white-space:nowrap;z-index:9999;pointer-events:none;';
+  document.body.appendChild(t);
   setTimeout(()=> t.remove(), ms);
 }
 
@@ -29,13 +37,15 @@ function updateCounter(){
   if (countEl) countEl.textContent = collected.size;
   if (totalEl) totalEl.textContent = TOTAL_ITEMS;
 
-  if (collected.size >= TOTAL_ITEMS) {
+  // 会话内仅触发一次烟花
+  if (collected.size >= TOTAL_ITEMS && !box.getItem(FIRE_ONCE_KEY)) {
+    box.setItem(FIRE_ONCE_KEY, '1');
     if (typeof fireworks === 'function') fireworks();
   }
 }
 
 function styleCollected(el){
-  // 如果元素声明 keepcolor，就不降亮度
+  // data-keepcolor="1" 的入口元素（书/水晶球）保持原色；其他置灰
   if (el.dataset.keepcolor === '1') {
     el.style.opacity = '';
     el.style.filter = '';
@@ -53,7 +63,6 @@ function attachHandlers(){
     const id = el.dataset.id;
     if (!id) return;
 
-    // 初始化外观
     if (collected.has(id)) styleCollected(el);
 
     el.addEventListener('click', () => {
@@ -61,48 +70,42 @@ function attachHandlers(){
       const already = state.has(id);
 
       if (!already) {
-        // 第一次点击：仅收集 + 提示；不跳转
+        // 第一次点击：收集 + 提示，不跳转
         styleCollected(el);
         state.add(id);
         updateCounter();
-
-        // 针对带 link 的入口元素，给提示“再次点击进入”
-        if (link) tip(el, '已收集！再次点击进入', 1500);
-        else      tip(el, '已收集 ✓', 1000);
+        tipToBody(el, link ? '已收集！再次点击进入' : '已收集 ✓', link ? 1500 : 1000);
         return;
       }
 
-      // 已收集
-      if (link) {
-        // 已收集 + 带链接：一次点击直接进入
-        location.href = link;
-      } else {
-        // 已收集 + 无链接：给轻提示
-        tip(el, '已经收集过啦', 800);
-      }
+      // 已收集：带链接就直接进入；无链接给提示
+      if (link) location.href = link;
+      else tipToBody(el, '已经收集过啦', 800);
     });
   });
+
+  // 清空按钮（如果页面放了 data-reset 收集按钮）
+  const resetBtn = document.querySelector('[data-reset-collect]');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => { state.reset(); updateCounter(); tipToBody(resetBtn, '已清空进度', 1000); });
+  }
 
   updateCounter();
 }
 
-// —— 控制台/页面可用的API ——
-// 清空全部收集记录
+// 对外 API（可选）
 window.resetCollect = () => { state.reset(); updateCounter(); };
-// 清除单个元素的收集记录
 window.clearCollected = (id) => { state.delete(id); updateCounter(); };
-// 查看已收集的 id 列表
 window.getCollected = () => Array.from(state.get());
 
 document.addEventListener('DOMContentLoaded', attachHandlers);
 
-// —— 占位 fireworks（请在最终页面里覆写为真正烟花）——
+// 占位烟花：请在最终页面覆写
 window.fireworks = window.fireworks || function(){
-  const b = document.body;
   const note = document.createElement('div');
   note.textContent = '🎆 全部收集完成！雪夜烟花！';
-  note.style.cssText = 'position:fixed;left:50%;top:14%;transform:translateX(-50%);'
-    + 'background:#000b;color:#fff;padding:10px 14px;border-radius:12px;font:14px system-ui;z-index:9999';
-  b.appendChild(note);
+  note.style.cssText = 'position:fixed;left:50%;top:14%;transform:translateX(-50%);' +
+    'background:#000b;color:#fff;padding:10px 14px;border-radius:12px;font:14px system-ui;z-index:9999';
+  document.body.appendChild(note);
   setTimeout(()=> note.remove(), 2200);
 };
