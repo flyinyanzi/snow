@@ -1,105 +1,120 @@
+
+<!-- =====================
+File: snow.html  （雪地 · 固定画布 1280×720）
+说明：
+1) 需要 /js/collect.js（会话内计数）
+2) 素材：/assets/lamp.svg, /assets/scarf.svg, /assets/footprints.svg
+===================== -->
 <!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>雪地 · 收集场景 Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>雪地 · 固定画布</title>
   <style>
-    :root{ --ink:#eef6ff; --muted:#c8d5f0; --accent:#88aaff; --glass:rgba(255,255,255,.12); --line:rgba(255,255,255,.18); }
-    *{box-sizing:border-box}
-    body{margin:0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans CJK JP","Microsoft YaHei",sans-serif; color:var(--ink);
-      min-height:100vh; overflow:hidden;
-      background:
-        radial-gradient(1000px 600px at 50% -20%, #8db5ff 0%, #6d8ff5 30%, #2e3a6f 60%, #141a36 100%),
-        linear-gradient(#0d1228, #0d1228);
-    }
+    :root{ --ink:#eef6ff; --line:rgba(255,255,255,.25); }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{ margin:0; background:#0d1228; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; color:var(--ink); }
 
-    /* 简易飘雪 */
-    .snow{position:fixed; inset:0; pointer-events:none; overflow:hidden;}
-    .flake{position:absolute; top:-10px; width:6px; height:6px; border-radius:50%; background:#fff; opacity:.85; filter:blur(.2px); animation: fall linear infinite;}
-    @keyframes fall{ to { transform: translateY(110vh) translateX(var(--dx, 0px)); opacity:.95; } }
+    #frame{ position:relative; width:min(100vw, 100svh * 16/9); height:calc(min(100vw, 100svh * 16/9) * 9/16); margin:0 auto; overflow:hidden; }
+    #world{ position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center center; transform:translate(-50%,-50%) scale(1); }
 
-    .wrap{max-width:1100px; margin:20px auto; padding:0 16px;}
-    header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;}
-    h1{font-size:18px; margin:0; letter-spacing:.4px}
-    .btn{appearance:none; border:1px solid var(--line); background:var(--glass); color:var(--ink); padding:8px 12px; border-radius:10px; cursor:pointer;}
+    /* 舞台背景（可换为雪地背景图）*/
+    .stage{ position:absolute; inset:0; border-radius:24px; border:1px solid #223060; background: radial-gradient(120% 90% at 50% -10%, #6d8ff5 0%, #2e3a6f 60%, #141a36 100%); overflow:hidden; }
+    .stage::after{ content:""; position:absolute; left:-80px; right:-80px; bottom:-80px; height:380px; background: radial-gradient(60% 60% at 50% 10%, rgba(255,255,255,.5), rgba(255,255,255,.1) 70%, transparent 80%); }
 
-    .stage{position:relative; height:76vh; border:1px solid var(--line); border-radius:16px; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); box-shadow: inset 0 -80px 140px rgba(0,0,0,.35); overflow:hidden}
+    /* 飘雪（覆盖在背景上方）*/
+    .snow{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+    .flake{ position:absolute; top:-10px; width:6px; height:6px; border-radius:50%; background:#fff; opacity:.85; filter:blur(.2px); animation: fall linear infinite; }
+    @keyframes fall{ to { transform: translateY(820px) translateX(var(--dx, 0px)); opacity:.95; } }
 
-    /* 地平线/雪地高光 */
-    .stage::after{content:""; position:absolute; left:-10%; right:-10%; bottom:-10%; height:56%; background: radial-gradient(70% 60% at 50% 30%, rgba(255,255,255,.5), rgba(255,255,255,.12) 60%, transparent 70%);}
+    /* 可收集元素（全部用 px 定位） */
+    .collect{ position:absolute; background-size:contain; background-repeat:no-repeat; background-position:center; border:0; cursor:pointer; }
+    .lamp{   left:220px; top:180px; width:70px;  height:170px; background-image:url('./assets/lamp.svg'); }
+    .scarf{  left:820px; top:320px; width:120px; height:70px;  background-image:url('./assets/scarf.svg'); }
+    .prints{ left:480px; top:460px; width:160px; height:120px; background-image:url('./assets/footprints.svg'); }
 
-    /* 计数条 */
-    #collect-counter{position:absolute; right:14px; top:14px; background:var(--glass); border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui}
+    /* 右上角按钮与计数 */
+    .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:5; }
+    .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#ffffff20; color:#fff; cursor:pointer; }
+    #collect-counter{ position:absolute; left:16px; top:16px; background:#0006; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:5; }
 
-    /* 三个可收集元素（先用色块代替，后续换图）*/
-    .collect{position:absolute; border:0; cursor:pointer; background-size:contain; background-repeat:no-repeat; background-position:center;}
-    /* 路灯 */
-    .lamp{ left:16%; top:26%; width:70px; height:170px; background-image: url('./assets/lamp.svg'); }
-    /* 围巾 */
-    .scarf{ left:58%; top:42%; width:120px; height:70px; background-image: url('./assets/scarf.svg'); }
-    /* 脚印 */
-    .prints{ left:34%; top:60%; width:160px; height:120px; background-image: url('./assets/footprints.svg'); }
-
-    /* 占位：如果图标暂时没有，给个底色以便点击调试 */
-    .collect:not([style*="background-image"]){ background: rgba(255,255,255,.15); border:1px dashed rgba(255,255,255,.35); border-radius:12px; }
-
-    /* 彩蛋横幅（触发烟花前的文案占位）*/
-    .banner{position:absolute; left:50%; top:10%; transform:translateX(-50%); background:var(--glass); border:1px solid var(--line); padding:8px 12px; border-radius:12px; font-size:14px; display:none}
+    /* 彩蛋横幅占位（后续用真正烟花替换） */
+    .banner{ position:absolute; left:50%; top:60px; transform:translateX(-50%); background:#0007; border:1px solid var(--line); padding:8px 12px; border-radius:12px; font-size:14px; display:none; z-index:6; }
   </style>
 </head>
 <body>
-  <div class="snow" id="snow"></div>
-  <div class="wrap">
-    <header>
-      <button class="btn" onclick="location.href='index.html'">← 回到房间</button>
-      <h1>雪地 · 收集场景</h1>
-      <div style="display:flex; gap:8px; align-items:center;">
+  <div id="frame">
+    <div id="world">
+      <div class="stage"></div>
+      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
+      <div class="ui">
+        <button class="btn" onclick="location.href='index.html'">← 回到房间</button>
         <button class="btn" data-reset-collect>清空进度</button>
       </div>
-    </header>
 
-    <section class="stage" aria-label="雪地场景">
-      <!-- 计数器（总数请与房间页一致，例如 7） -->
-      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
-
-      <!-- 三个元素（先用占位图/路径；稍后替换为正式图标，并调位置） -->
+      <!-- 三个元素（px 摆位） -->
       <button class="collect lamp"   data-id="snow-lamp"   aria-label="雪地路灯"></button>
       <button class="collect scarf"  data-id="snow-scarf"  aria-label="围巾"></button>
       <button class="collect prints" data-id="snow-prints" aria-label="脚印"></button>
 
       <div id="banner" class="banner">🎁 收集完全部元素将触发彩蛋：雪夜烟花</div>
-    </section>
+
+      <!-- 飘雪层（覆盖在背景上） -->
+      <div class="snow" id="snow"></div>
+    </div>
   </div>
 
-  <!-- 收集脚本（会话内计数/清空/彩蛋占位） -->
-  <script defer src="./js/collect.js"></script>
   <script>
-    // 轻量飘雪：生成若干雪花
-    const container = document.getElementById('snow');
-    const FLAKES = 90; // 可调雪花数量
-    for(let i=0;i<FLAKES;i++){
-      const f = document.createElement('div');
-      f.className = 'flake';
-      const size = Math.random()*4 + 2; // 2-6 px
-      const left = Math.random()*100;   // vw
-      const dur = Math.random()*6 + 6;  // 6-12s
-      const delay = Math.random()*-12;  // 负延迟
-      const dx = (Math.random()*80 - 40)+'px'; // 横向飘移
-      f.style.width = f.style.height = size+'px';
-      f.style.left = left+'vw';
-      f.style.animationDuration = dur+'s';
-      f.style.animationDelay = delay+'s';
-      f.style.setProperty('--dx', dx);
-      container.appendChild(f);
-    }
+    // 固定画布缩放：把 1280×720 的 world 等比缩放到 frame 内
+    (function(){
+      const DESIGN_W = 1280, DESIGN_H = 720;
+      const frame = document.getElementById('frame');
+      const world = document.getElementById('world');
+      function layout(){
+        const vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const w = Math.min(vw, vh * 16/9);
+        const h = w * 9/16;
+        frame.style.width = w + 'px';
+        frame.style.height = h + 'px';
+        const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+        world.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      layout();
+      window.addEventListener('resize', layout);
+      window.addEventListener('orientationchange', layout);
+    })();
 
-    // 可选：在雪地页覆写 fireworks，实现更漂亮的烟花（暂时占位）
+    // 轻量飘雪
+    (function(){
+      const container = document.getElementById('snow');
+      const FLAKES = 90; // 可调数量
+      for(let i=0;i<FLAKES;i++){
+        const f = document.createElement('div');
+        f.className = 'flake';
+        const size = Math.random()*4 + 2; // 2-6 px
+        const left = Math.random()*1280;  // 画布宽度范围内
+        const dur = Math.random()*6 + 6;  // 6-12s
+        const delay = Math.random()*-12;  // 负延迟
+        const dx = (Math.random()*80 - 40)+'px';
+        f.style.width = f.style.height = size+'px';
+        f.style.left = left+'px';
+        f.style.animationDuration = dur+'s';
+        f.style.animationDelay = delay+'s';
+        f.style.setProperty('--dx', dx);
+        container.appendChild(f);
+      }
+    })();
+
+    // 在雪地页覆写 fireworks：先用横幅占位
     window.fireworks = function(){
       const b = document.getElementById('banner');
       if(b){ b.style.display='block'; b.textContent = '🎆 全部收集完成！雪夜烟花（占位）'; }
-      // TODO: 后续接入 Canvas 烟花动画
+      // TODO: 后续接入 Canvas 写意烟花
     };
   </script>
+  <script defer src="./js/collect.js"></script>
 </body>
 </html>
