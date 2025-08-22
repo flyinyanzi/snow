@@ -1,123 +1,127 @@
+<!-- =====================
+File: index.html  （房间/首页 · 固定画布 1280×720）
+说明：
+1) 需要 /js/collect.js
+2) 素材：/assets/memory.svg, /assets/divination.png （可先用占位色）
+===================== -->
 <!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>房间之门 · 示例</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>小房间 · 首页（固定画布）</title>
   <style>
-    :root{ --bg:#e9eefc; --room:#fff; --ink:#253152; --line:#d9e0f6; --shadow:0 20px 60px rgba(35,50,100,.18); --gold:#ffd899; --moon:#bcd0ff; }
-    *{box-sizing:border-box}
-    body{margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; background:linear-gradient(180deg,#f3f6ff,#e9eefc); color:var(--ink);}
-    .wrap{max-width:1100px; margin:32px auto; padding:0 16px}
-    header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px}
-    h1{font-size:20px; margin:0}
-    .stage{position:relative; height:70vh; border-radius:24px; box-shadow:var(--shadow); background:radial-gradient(120% 90% at 20% 0%, #f7f9ff 0%, #eef2ff 50%, #e9eefc 100%); border:1px solid var(--line); overflow:hidden}
+    :root{ --line:#d9e0f6; --ink:#253152; --bg:#e9eefc; }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{ margin:0; background:linear-gradient(180deg,#f3f6ff,#e9eefc); font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; color:var(--ink); }
 
-    /* —— 房间地板与墙面 —— */
-    .floor{position:absolute; inset:auto 0 0 0; height:36%; background:linear-gradient(180deg,#eef2ff,#e2e9ff); border-top:1px solid #d8e0f6}
-    .bookshelf{position:absolute; left:6%; top:10%; width:22%; height:44%; background:linear-gradient(180deg,#ffffff,#f1f4ff); border:1px solid var(--line); border-radius:18px; box-shadow:inset 0 3px 0 rgba(255,255,255,.7)}
-    .desk{position:absolute; left:56%; top:52%; width:28%; height:18%; background:linear-gradient(180deg,#ffffff,#eef2ff); border:1px solid var(--line); border-radius:14px}
+    /* 外框：始终居中显示一个 16:9 舞台区域 */
+    #frame{ position:relative; width:min(100vw, 100svh * 16/9); height:calc(min(100vw, 100svh * 16/9) * 9/16); margin:0 auto; overflow:hidden; }
+    /* 固定画布：1280×720，内部元素全部用 px 定位 */
+    #world{ position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center center; transform:translate(-50%,-50%) scale(1); }
 
-    /* —— 门主体 —— */
-    .door-wrap{position:absolute; left:38%; top:18%; width:170px; height:300px;}
+    /* —— 房间背景（占位形） —— */
+    .stage{ position:absolute; inset:0; border-radius:24px; border:1px solid var(--line); box-shadow:0 20px 60px rgba(35,50,100,.18); background:radial-gradient(120% 90% at 20% 0%, #f7f9ff 0%, #eef2ff 50%, #e9eefc 100%); overflow:hidden; }
+    .floor{ position:absolute; left:0; right:0; bottom:0; height:260px; background:linear-gradient(180deg,#eef2ff,#e2e9ff); border-top:1px solid var(--line); }
+    .bookshelf{ position:absolute; left:80px; top:90px; width:280px; height:320px; background:linear-gradient(180deg,#ffffff,#f1f4ff); border:1px solid var(--line); border-radius:18px; box-shadow:inset 0 3px 0 rgba(255,255,255,.7); }
+    .desk{ position:absolute; left:760px; top:420px; width:360px; height:140px; background:linear-gradient(180deg,#ffffff,#eef2ff); border:1px solid var(--line); border-radius:14px; }
 
-    .door{position:absolute; inset:0; border-radius:18px; background:linear-gradient(180deg,#fefefe,#edf2ff); border:1px solid #d7def3; box-shadow:0 10px 30px rgba(0,0,0,.06), inset 0 3px 0 rgba(255,255,255,.8); overflow:hidden; cursor:pointer}
-    /* 门框内侧的深色缝隙 */
-    .door::before{content:""; position:absolute; inset:10px; border-radius:14px; background:#0f1730; box-shadow: inset 0 0 0 1px #253369}
-
-    /* 门扇（可开合） */
-    .leaf{position:absolute; left:10px; top:10px; bottom:10px; width:calc(100% - 20px); transform-origin:left center; border-radius:12px; background:linear-gradient(180deg,#fafbff,#e7edff); border:1px solid #d3dbf5; box-shadow:inset 0 4px 0 rgba(255,255,255,.7)}
-    .leaf::after{content:""; position:absolute; right:16px; top:50%; width:8px; height:8px; border-radius:50%; background:#a2b5ff; box-shadow:0 0 0 2px #eef2ff inset}
-
-    /* 门缝光（写意光束） */
-    .glow{position:absolute; left:10px; top:10px; bottom:10px; width:3px; background:linear-gradient(180deg,transparent 0%, rgba(255,244,210,.9) 40%, rgba(255,244,210,.6) 70%, transparent 100%); filter:blur(0.4px); opacity:0; transition:opacity .35s ease}
-
-    /* 开门时从门内溢出的光雾 */
-    .beam{position:absolute; left:8px; top:20px; width:220px; height:260px; background:conic-gradient(from 270deg at 0 50%, rgba(255,218,140,.0), rgba(255,218,140,.35), rgba(255,245,210,.0)); filter:blur(18px); opacity:0; transform:translateX(-20px); transition:opacity .35s ease, transform .5s ease}
-
-    /* 小星屑 */
-    .spark{position:absolute; width:6px; height:6px; border-radius:50%; background:radial-gradient(circle,#fff,#ffdca8); box-shadow:0 0 10px 3px rgba(255,218,140,.55); opacity:0; transform:translateY(6px) scale(.6); animation:spark 2.2s ease-in-out infinite; animation-play-state:paused}
-    .spark:nth-child(1){left:26px; top:40px; animation-delay:.0s}
-    .spark:nth-child(2){left:44px; top:120px; animation-delay:.4s}
-    .spark:nth-child(3){left:18px; top:200px; animation-delay:.8s}
+    /* —— 门 —— */
+    .door-wrap{ position:absolute; left:560px; top:140px; width:170px; height:300px; }
+    .door{ position:absolute; inset:0; border-radius:18px; background:linear-gradient(180deg,#fefefe,#edf2ff); border:1px solid #d7def3; box-shadow:0 10px 30px rgba(0,0,0,.06), inset 0 3px 0 rgba(255,255,255,.8); overflow:hidden; cursor:pointer; }
+    .door::before{ content:""; position:absolute; inset:10px; border-radius:14px; background:#0f1730; box-shadow: inset 0 0 0 1px #253369; }
+    .leaf{ position:absolute; left:10px; top:10px; bottom:10px; width:calc(100% - 20px); transform-origin:left center; border-radius:12px; background:linear-gradient(180deg,#fafbff,#e7edff); border:1px solid #d3dbf5; box-shadow:inset 0 4px 0 rgba(255,255,255,.7); }
+    .leaf::after{ content:""; position:absolute; right:16px; top:50%; width:8px; height:8px; border-radius:50%; background:#a2b5ff; box-shadow:0 0 0 2px #eef2ff inset; }
+    .glow{ position:absolute; left:10px; top:10px; bottom:10px; width:3px; background:linear-gradient(180deg,transparent 0%, rgba(255,244,210,.9) 40%, rgba(255,244,210,.6) 70%, transparent 100%); filter:blur(.4px); opacity:0; transition:opacity .35s ease; }
+    .beam{ position:absolute; left:8px; top:20px; width:220px; height:260px; background:conic-gradient(from 270deg at 0 50%, rgba(255,218,140,.0), rgba(255,218,140,.35), rgba(255,245,210,.0)); filter:blur(18px); opacity:0; transform:translateX(-20px); transition:opacity .35s ease, transform .5s ease; }
+    .spark{ position:absolute; width:6px; height:6px; border-radius:50%; background:radial-gradient(circle,#fff,#ffdca8); box-shadow:0 0 10px 3px rgba(255,218,140,.55); opacity:0; transform:translateY(6px) scale(.6); animation:spark 2.2s ease-in-out infinite; animation-play-state:paused; }
+    .spark:nth-child(1){ left:26px; top:40px; animation-delay:.0s }
+    .spark:nth-child(2){ left:44px; top:120px; animation-delay:.4s }
+    .spark:nth-child(3){ left:18px; top:200px; animation-delay:.8s }
     @keyframes spark{ 0%,100%{opacity:0; transform:translateY(6px) scale(.6)} 40%{opacity:1; transform:translateY(-4px) scale(1)} }
-
-    /* 悬停微动画 */
-    .door:hover .leaf{transform:perspective(800px) rotateY(-6deg)}
-    .door:hover .glow{opacity:1}
-
-    /* 点击开门动画 */
-    .opening .leaf{animation:open 0.8s cubic-bezier(.2,.8,.2,1) forwards}
-    .opening .beam{opacity:1; transform:translateX(0)}
-    .opening .spark{animation-play-state:running}
+    .door:hover .leaf{ transform:perspective(800px) rotateY(-6deg); }
+    .door:hover .glow{ opacity:1; }
+    .opening .leaf{ animation:open .8s cubic-bezier(.2,.8,.2,1) forwards; }
+    .opening .beam{ opacity:1; transform:translateX(0); }
+    .opening .spark{ animation-play-state:running; }
     @keyframes open{ to { transform:perspective(800px) rotateY(-78deg) } }
 
-    /* 返回与计数 UI（可选） */
-    .ui{position:absolute; right:16px; top:16px; display:flex; gap:8px}
-    .btn{appearance:none; border:1px solid #d8e0f6; border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer}
-    #collect-counter{position:absolute; left:16px; top:16px; background:#ffffffd8; border:1px solid #d8e0f6; border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui}
+    /* —— 可收集元素（全部 px 定位） —— */
+    .collect{ position:absolute; background-size:contain; background-repeat:no-repeat; background-position:center; border:0; cursor:pointer; }
+    .book{ left:140px; top:120px; width:100px; height:100px; background-image:url('./assets/memory.svg'); }
+    .orb{  left:900px; top:460px; width:120px; height:120px; background-image:url('./assets/divination.png'); }
 
-    /* 书与水晶球（示例占位） */
-    .book{position:absolute; left:10%; top:18%; width:80px; height:80px; background:url('./assets/memory.svg') center/contain no-repeat; border:0; cursor:pointer}
-    .orb{ position:absolute; left:66%; top:50%; width:90px; height:90px; background:url('./assets/divination.png') center/contain no-repeat; border:0; cursor:pointer}
+    /* 右上角按钮 */
+    .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:5; }
+    .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer; }
+
+    /* 计数条（可选） */
+    #collect-counter{ position:absolute; left:16px; top:16px; background:#ffffffd8; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:5; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>雪中记忆小屋（点击开门后进入雪地）</h1>
-      <div class="ui">
-        <button class="btn" onclick="location.href='index.html'">返回首页</button>
-        <button class="btn" data-reset-collect>清空进度</button>
-      </div>
-    </header>
-
-    <section class="stage" aria-label="房间">
-      <!-- 计数提示 -->
-      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
-
+  <div id="frame">
+    <div id="world">
+      <div class="stage"></div>
+      <div class="floor"></div>
       <div class="bookshelf"></div>
       <div class="desk"></div>
-      <div class="floor"></div>
 
-      <!-- 书（回忆录入口，计入收集，保持原色） -->
+      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
+      <div class="ui">
+        <button class="btn" data-reset-collect>清空进度</button>
+      </div>
+
+      <!-- 回忆录入口（计入收集，保持原色） -->
       <button class="collect book" data-id="book-memory" data-link="memory.html" data-keepcolor="1" aria-label="书架上的书（回忆录）"></button>
+      <!-- 掷筊入口（计入收集，保持原色） -->
+      <button class="collect orb"  data-id="crystal-divination" data-link="divination.html" data-keepcolor="1" aria-label="水晶球（掷筊）"></button>
 
-      <!-- 水晶球（掷筊入口，计入收集，保持原色） -->
-      <button class="collect orb" data-id="crystal-divination" data-link="divination.html" data-keepcolor="1" aria-label="水晶球（掷筊）"></button>
-
-      <!-- 门（非收集项；若想计入收集，可加 .collect 与 data-id） -->
+      <!-- 门：点击播放动画后跳转雪地 -->
       <div class="door-wrap" aria-label="通往雪地的门">
         <div class="door" id="door">
           <div class="leaf"></div>
           <div class="glow"></div>
           <div class="beam"></div>
-          <!-- 写意星屑（3颗） -->
           <div class="spark"></div>
           <div class="spark"></div>
           <div class="spark"></div>
         </div>
       </div>
-    </section>
+    </div>
   </div>
 
-  <!-- 收集脚本（会话内计数） -->
-  <script defer src="./js/collect.js"></script>
   <script>
-    // 点击门：先播放开门动画，再跳转到雪地
+    // 固定画布缩放：把 1280×720 的 world 等比缩放到 frame 内
+    (function(){
+      const DESIGN_W = 1280, DESIGN_H = 720;
+      const frame = document.getElementById('frame');
+      const world = document.getElementById('world');
+      function layout(){
+        const vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const w = Math.min(vw, vh * 16/9);
+        const h = w * 9/16;
+        frame.style.width = w + 'px';
+        frame.style.height = h + 'px';
+        const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+        world.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      layout();
+      window.addEventListener('resize', layout);
+      window.addEventListener('orientationchange', layout);
+    })();
+
+    // 门开 → 跳雪地
     const door = document.getElementById('door');
     let opening = false;
     door.addEventListener('click', () => {
-      if(opening) return;
-      opening = true;
+      if(opening) return; opening = true;
       door.classList.add('opening');
-      // 800ms 对齐 @keyframes open 的时长
       setTimeout(()=> { window.location.href = 'snow.html'; }, 820);
     });
-
-    // 如果希望门也算收集项：
-    // 给 .door-wrap 添加 class="collect" 和 data-id="room-door"
-    // 并在 JS 中把跳转逻辑绑定到 .door-wrap 的第二次点击（已收集后）
   </script>
+  <script defer src="./js/collect.js"></script>
 </body>
 </html>
