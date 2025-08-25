@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>小房间 · 单图热点版</title>
+<style>
+  :root{ --line:#d9e0f6; --ink:#253152; }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; color:var(--ink); background:#f1f4ff; }
+
+  /* 外框：居中一个可缩放区域（随屏幕等比缩放） */
+  #frame{
+    position:relative;
+    width:min(100vw, 100svh * 1);              /* 正方形图：宽=高 */
+    height:min(100vw, 100svh * 1);
+    margin:0 auto;
+    overflow:hidden;
+  }
+  /* world 的尺寸 = 背景图原始尺寸（这里是 1020x1019） */
+  #world{
+    position:absolute; left:50%; top:50%;
+    width:1020px; height:1019px;               /* ← 按你的图尺寸写死 */
+    transform-origin:center center;
+    transform:translate(-50%, -50%) scale(1);
+    background: url("./assets/room.jpg") center/cover no-repeat; /* ← 换成你的图 */
+    border-radius:24px; border:1px solid var(--line);
+    box-shadow:0 20px 60px rgba(35,50,100,.18);
+  }
+
+  /* 透明热点：用像素精确定位（相对于 1020×1019 的画布） */
+  .hotspot{
+    position:absolute; border:0; background:transparent; cursor:pointer;
+  }
+
+  /* 可选：开发时按 Shift+D 切换可视化热点 */
+  .debug .hotspot{ outline:2px dashed rgba(255,120,0,.7); background:rgba(255,120,0,.08); }
+
+  /* 顶部 UI：计数与清空 */
+  .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:5; }
+  .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer; }
+  #collect-counter{ position:absolute; left:16px; top:16px; background:#ffffffd8; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:5; }
+
+  /* 漂浮提示 */
+  .toast{
+    position:fixed; left:50%; top:10%;
+    transform:translateX(-50%);
+    background:#0008; color:#fff;
+    padding:8px 12px; border-radius:12px;
+    border:1px solid rgba(255,255,255,.25);
+    font:14px/1.2 system-ui; z-index:99; pointer-events:none;
+    opacity:0; transition:opacity .25s ease;
+  }
+</style>
+</head>
+<body>
+  <div id="frame">
+    <div id="world">
+      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
+      <div class="ui">
+        <button class="btn" data-reset-collect>清空进度</button>
+      </div>
+
+      <!-- 透明热点（单位：像素，相对 1020×1019） -->
+      <!-- 书架上的书（回忆录入口）  x=720 y=170 w=240 h=80 -->
+      <button class="hotspot collect" data-id="book-memory" data-link="memory.html" data-keepcolor="1"
+              style="left:720px; top:170px; width:240px; height:80px;"
+              aria-label="书架上的书（回忆录）"></button>
+
+      <!-- 椅子上的猫（掷筊入口）  x=530 y=560 w=120 h=80 -->
+      <button class="hotspot collect" data-id="crystal-divination" data-link="divination.html" data-keepcolor="1"
+              style="left:530px; top:560px; width:120px; height:80px;"
+              aria-label="椅子上的猫（掷筊）"></button>
+
+      <!-- 桌上的电脑（收集 + 播放音乐 + 显示一句话） x=430 y=470 w=180 h=120 -->
+      <button id="pc" class="hotspot collect" data-id="room-pc"
+              style="left:430px; top:470px; width:180px; height:120px;"
+              aria-label="电脑"></button>
+
+      <!-- 画架后露出一半的植物（收集 + 显示一句话） x=110 y=470 w=120 h=130 -->
+      <button id="plant" class="hotspot collect" data-id="room-plant"
+              style="left:110px; top:470px; width:120px; height:130px;"
+              aria-label="画架后的植物"></button>
+
+      <!-- 墙上从左数第二幅画（门 → 雪地） x=300 y=230 w=140 h=180 -->
+      <button id="door" class="hotspot"
+              style="left:300px; top:230px; width:140px; height:180px;"
+              aria-label="墙上的画（门）"></button>
+    </div>
+  </div>
+
+  <!-- 音乐（换成你的 mp3） -->
+  <audio id="bgm" src="./assets/lofi.mp3" preload="auto"></audio>
+
+  <!-- 会话内收集脚本 -->
+  <script defer src="./js/collect.js"></script>
+
+  <script>
+    // —— 等比缩放（把 1020×1019 的 world 缩放进 frame） ——
+    (function(){
+      const DESIGN_W = 1020, DESIGN_H = 1019;
+      const frame = document.getElementById('frame');
+      const world = document.getElementById('world');
+      function layout(){
+        const vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const size = Math.min(vw, vh);            // 正方形图：用较小边
+        frame.style.width = size + 'px';
+        frame.style.height = size + 'px';
+        const scale = Math.min(size / DESIGN_W, size / DESIGN_H);
+        world.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      layout();
+      window.addEventListener('resize', layout);
+      window.addEventListener('orientationchange', layout);
+    })();
+
+    // —— 漂浮提示小工具 ——
+    function toast(text, ms=1200){
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = text;
+      document.body.appendChild(t);
+      requestAnimationFrame(()=>{ t.style.opacity = '1'; });
+      setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(), 250); }, ms);
+    }
+
+    // —— 电脑：收集 + 音乐播放/暂停 + 文案 ——
+    (function(){
+      const btn = document.getElementById('pc');
+      const audio = document.getElementById('bgm');
+      let first = true;
+      btn.addEventListener('click', ()=>{
+        // 收集（collect.js 会处理“首次点击=收集、再次点击=提示/跳转”）
+        // 这里附加音乐逻辑：第一次点击后尝试播放
+        if (first) {
+          first = false;
+          toast('已收集：电脑 · 播放一段音乐', 1400);
+          audio.volume = 0.85;
+          audio.play().catch(()=>{ /* 用户未与页面交互时可能被拦截 */ });
+        } else {
+          // 已收集后：切换播放/暂停
+          if (audio.paused){ audio.play(); toast('继续播放', 900); }
+          else { audio.pause(); toast('暂停播放', 900); }
+        }
+      });
+    })();
+
+    // —— 植物：收集 + 文案 ——
+    (function(){
+      const btn = document.getElementById('plant');
+      btn.addEventListener('click', ()=>{
+        toast('已收集：一丛悄悄长高的绿意', 1400);
+      });
+    })();
+
+    // —— 墙上画（门）：先弹一句话，再跳雪地 ——
+    (function(){
+      const btn = document.getElementById('door');
+      btn.addEventListener('click', ()=>{
+        toast('门外有风与雪，我们一起去看看', 1200);
+        setTimeout(()=> location.href='snow.html', 820);
+      });
+    })();
+
+    // —— 开发辅助：Shift+D 切换热点可视化 —— 
+    document.addEventListener('keydown', (e)=>{
+      if(e.shiftKey && e.key.toLowerCase()==='d'){
+        document.getElementById('world').classList.toggle('debug');
+      }
+    });
+  </script>
+</body>
+</html>
