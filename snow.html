@@ -40,9 +40,14 @@
     /* 可收集元素（矢量按钮，px 定位在 1280×720 画布上） */
     .collect{ position:absolute; background:transparent; border:0; cursor:pointer; }
 
-    /* —— 路灯（左侧） —— */
+    /* —— 路灯（左侧）初始熄灭 / 亮起时加 .on —— */
     .lamp{ left:220px; top:420px; width:90px; height:220px; }
     .lamp svg{ width:100%; height:100%; display:block; }
+    /* 柔和过渡：灯芯颜色 + 光晕显隐 */
+    .lamp svg #bulb{ transition: fill .6s ease, filter .6s ease; filter:none; }
+    .lamp.on svg #bulb{ fill:#ffd57e; filter: drop-shadow(0 0 6px rgba(255,216,140,.6)); }
+    .lamp svg #glow{ transition: opacity .8s ease; }
+    .lamp.on svg #glow{ opacity:1; }
 
     /* —— 围巾（中部） —— */
     .scarf{ left:760px; top:470px; width:160px; height:90px; }
@@ -84,19 +89,21 @@
       </div>
 
       <!-- ====== 矢量元素（可收集） ====== -->
-      <!-- 路灯（纯收集） -->
-      <button class="collect lamp" data-id="snow-lamp" aria-label="雪地路灯">
+      <!-- 路灯（初始熄灭：无 .on） -->
+      <button id="lamp" class="collect lamp" data-id="snow-lamp" aria-label="雪地路灯">
         <svg viewBox="0 0 90 220" aria-hidden="true">
-          <defs>
-            <radialGradient id="g" cx="50%" cy="20%" r="60%">
+          <!-- 灯体 + 柔和过渡：用具体节点控制，而不是 CSS 变量，便于 transition -->
+          <rect x="42" y="40" width="6" height="150" rx="3" fill="#93a1e8"/>
+          <circle cx="45" cy="36" r="14" fill="#c7d1ff" stroke="#93a1e8"/>
+          <circle id="bulb" cx="45" cy="36" r="6" fill="#3a4e7a"/>
+          <!-- 光晕用可过渡的不透明度控制 -->
+          <g id="glow" opacity="0">
+            <radialGradient id="lampGlow" cx="50%" cy="20%" r="60%">
               <stop offset="0%" stop-color="#ffe8a6" stop-opacity="1"/>
               <stop offset="100%" stop-color="#ffe8a6" stop-opacity="0"/>
             </radialGradient>
-          </defs>
-          <rect x="42" y="40" width="6" height="150" rx="3" fill="#93a1e8"/>
-          <circle cx="45" cy="36" r="14" fill="#c7d1ff" stroke="#93a1e8"/>
-          <circle cx="45" cy="36" r="6"  fill="#ffd57e"/>
-          <ellipse cx="45" cy="70" rx="60" ry="60" fill="url(#g)"/>
+            <ellipse cx="45" cy="70" rx="60" ry="60" fill="url(#lampGlow)"/>
+          </g>
         </svg>
       </button>
 
@@ -109,7 +116,7 @@
         </svg>
       </button>
 
-      <!-- 蝴蝶（收集 + 触发流星） -->
+      <!-- 蝴蝶（收集 + 触发流星→点亮路灯） -->
       <button id="butterfly" class="collect butterfly" data-id="snow-butterfly" data-keepcolor="1" aria-label="蝴蝶">
         <svg viewBox="0 0 84 60" aria-hidden="true">
           <defs>
@@ -132,8 +139,8 @@
     </div>
   </div>
 
-  <!-- 固定画布缩放：把 1280×720 的 world 等比缩放到 frame 内 -->
   <script>
+    // 固定画布缩放
     (function(){
       const DESIGN_W = 1280, DESIGN_H = 720;
       const frame = document.getElementById('frame');
@@ -159,14 +166,14 @@
     // —— (1) 飘雪 ——
     (function(){
       const container = document.getElementById('snow');
-      const FLAKES = 70; // 数量
+      const FLAKES = 70;
       for(let i=0;i<FLAKES;i++){
         const f = document.createElement('div');
         f.className = 'flake';
-        const size = Math.random()*4 + 2; // 2-6 px
-        const left = Math.random()*1280;  // 画布宽度范围内
-        const dur = Math.random()*6 + 6;  // 6-12s
-        const delay = Math.random()*-12;  // 负延迟
+        const size = Math.random()*4 + 2;
+        const left = Math.random()*1280;
+        const dur = Math.random()*6 + 6;
+        const delay = Math.random()*-12;
         const dx = (Math.random()*80 - 40)+'px';
         f.style.width = f.style.height = size+'px';
         f.style.left = left+'px';
@@ -177,18 +184,16 @@
       }
     })();
 
-    // —— (2) 流星：Canvas 写意拖尾 ——
+    // —— (2) 流星：返回 Promise，结束于左下角并消失 ——
     (function(){
       const canvas = document.getElementById('fx');
       const ctx = canvas.getContext('2d');
       const dpr = Math.max(1, window.devicePixelRatio || 1);
-      // 放大画布，提高清晰度
       canvas.width = 1280 * dpr; canvas.height = 720 * dpr; ctx.scale(dpr, dpr);
 
       let meteors = []; let raf = null;
 
       function loop(){
-        // 褪色：留下拖尾
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = 'rgba(15,20,50,0.35)';
         ctx.fillRect(0,0,1280,720);
@@ -196,12 +201,10 @@
 
         for(let i=meteors.length-1;i>=0;i--){
           const m = meteors[i];
-          // 更新
           m.x += m.vx; m.y += m.vy; m.life -= 0.016;
-          m.vx *= 0.997; m.vy *= 1.001; // 轻微重力
+          m.vx *= 0.997; m.vy *= 1.001;
           m.history.push({x:m.x, y:m.y}); if(m.history.length>20) m.history.shift();
 
-          // 绘制拖尾
           for(let j=0;j<m.history.length-1;j++){
             const p1 = m.history[j], p2 = m.history[j+1];
             const alpha = j / m.history.length;
@@ -209,45 +212,47 @@
             ctx.lineWidth = Math.max(1, 4 * alpha);
             ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
           }
-          // 核心亮点
           const grd = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 14);
           grd.addColorStop(0, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},1)`);
           grd.addColorStop(1, 'rgba(255,255,255,0)');
           ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(m.x, m.y, 14, 0, Math.PI*2); ctx.fill();
 
-          // 结束条件
-          if(m.life<=0 || m.x<-100 || m.y>820) meteors.splice(i,1);
+          // 结束：到左下角区域或寿命到
+          if(m.life<=0 || m.x<-40 || m.y>700){
+            const done = m.done; meteors.splice(i,1); if(done) done();
+          }
         }
         if(meteors.length===0){ cancelAnimationFrame(raf); raf=null; return; }
         raf = requestAnimationFrame(loop);
       }
 
-      // 对外：从 (sx,sy) 向左下划过一颗流星
+      // Promise 版：spawnMeteor(sx,sy).then(()=>{ 点亮路灯 })
       window.spawnMeteor = function(sx, sy, color='cool'){
-        const palette = color==='warm' ? [255, 210, 120] : [170, 210, 255];
-        const m = {
-          x: sx, y: sy, vx: -10 - Math.random()*4, vy: 6 + Math.random()*2,
-          life: 1.2, color: palette, history: []
-        };
-        m.history.push({x:m.x, y:m.y});
-        meteors.push(m);
-        if(!raf) raf = requestAnimationFrame(loop);
+        return new Promise(resolve=>{
+          const palette = color==='warm' ? [255,210,120] : [170,210,255];
+          const m = { x:sx, y:sy, vx:-10 - Math.random()*4, vy:6 + Math.random()*2, life:1.3, color:palette, history:[], done:resolve };
+          m.history.push({x:m.x, y:m.y}); meteors.push(m);
+          if(!raf) raf = requestAnimationFrame(loop);
+        });
       }
     })();
   </script>
 
-  <!-- 点击蝴蝶：收集 & 划过流星 -->
+  <!-- 点击蝴蝶：收集 & 划过流星 → 点亮路灯 -->
   <script>
     const butterfly = document.getElementById('butterfly');
+    const lamp = document.getElementById('lamp');
     butterfly.addEventListener('click', () => {
-      // 在蝴蝶上方一点生成流星
       const rect = butterfly.getBoundingClientRect();
       const worldRect = document.getElementById('world').getBoundingClientRect();
-      // 将屏幕坐标换算到 1280×720 世界坐标
       const scale = worldRect.width / 1280;
       const sx = (rect.left - worldRect.left + rect.width*0.7) / scale; // 稍靠右
       const sy = (rect.top - worldRect.top) / scale - 40;               // 上方
-      window.spawnMeteor(sx, sy, 'cool');
+      window.spawnMeteor(sx, sy, 'cool').then(()=>{
+        // 流星完成后点亮路灯 + 柔化雪
+        lamp.classList.add('on');
+        softenSnow();
+      });
     });
 
     // 开发辅助：Shift+D 切换热点可视化
@@ -256,6 +261,34 @@
         document.getElementById('world').classList.toggle('debug');
       }
     });
+    </script>
+
+  <script>
+    // 柔化雪：减速 & 适度减量 & 降低不透明度
+    function softenSnow(){
+      const flakes = Array.from(document.querySelectorAll('.flake'));
+      flakes.forEach((f,i)=>{
+        const dur = parseFloat(getComputedStyle(f).animationDuration) || 8;
+        f.style.animationDuration = (dur * 1.6).toFixed(2) + 's';
+        f.style.opacity = '0.7';
+        // 随机移除部分雪花，保留 2/3
+        if (Math.random() < 0.33) f.remove();
+      });
+    }
+  </script>
+
+  <style>
+    #hintText{ position:absolute; left:50%; top:65%; transform:translateX(-50%); color:#fff; font:18px/1.4 "KaiTi",serif; opacity:0; pointer-events:none; transition:opacity 1s ease; white-space:nowrap; }
+  </style>
+
+  <div id="hintText">蝴蝶化作流星划过天际，路灯亮了。</div>
+
+  <script>
+    function showHint(){
+      const h=document.getElementById('hintText');
+      h.style.opacity=1;
+      setTimeout(()=>{ h.style.opacity=0; }, 2600);
+    }
   </script>
 
   <!-- 收集脚本（会话内计数 / 你现有的 v3.1 即可） -->
