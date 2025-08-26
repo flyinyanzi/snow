@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>雪地 · 渐变+矢量+流星（最小Demo）</title>
+  <style>
+    :root{ --ink:#eef6ff; --line:rgba(255,255,255,.25); }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{ margin:0; background:#0d1228; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; color:var(--ink); }
+
+    /* 固定画布方案A：1280×720 的世界，根据屏幕等比缩放 */
+    #frame{ position:relative; width:min(100vw, 100svh * 16/9); height:calc(min(100vw, 100svh * 16/9) * 9/16); margin:0 auto; overflow:hidden; }
+    #world{ position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center center; transform:translate(-50%, -50%) scale(1); }
+
+    /* 舞台背景：渐变天空 + 星点 + 地平线高光 */
+    .stage{ position:absolute; inset:0; border-radius:24px; border:1px solid #223060; overflow:hidden; }
+    .sky{ position:absolute; inset:0; background:
+      radial-gradient(140% 80% at 50% -10%, #6aa3ff 0%, #3857a8 55%, #1b2350 80%, #0f1330 100%);
+    }
+    .stars{ position:absolute; inset:0; pointer-events:none; opacity:.8;
+      background:
+        radial-gradient(1.6px 1.6px at 12% 16%, #fff 40%, transparent 60%),
+        radial-gradient(1.8px 1.8px at 32% 28%, #fff 40%, transparent 60%),
+        radial-gradient(1.4px 1.4px at 46% 12%, #fff 40%, transparent 60%),
+        radial-gradient(1.6px 1.6px at 70% 22%, #fff 40%, transparent 60%),
+        radial-gradient(1.4px 1.4px at 86% 18%, #fff 40%, transparent 60%),
+        radial-gradient(1.2px 1.2px at 24% 44%, #fff 40%, transparent 60%),
+        radial-gradient(1.2px 1.2px at 62% 40%, #fff 40%, transparent 60%),
+        radial-gradient(1.3px 1.3px at 78% 46%, #fff 40%, transparent 60%);
+    }
+    .groundGlow{ position:absolute; left:-80px; right:-80px; bottom:-80px; height:380px; background: radial-gradient(60% 60% at 50% 10%, rgba(255,255,255,.55), rgba(255,255,255,.12) 70%, transparent 80%); }
+
+    /* 右上角按钮与计数 */
+    .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:5; }
+    .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#ffffff20; color:#fff; cursor:pointer; }
+    #collect-counter{ position:absolute; left:16px; top:16px; background:#0006; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:5; }
+
+    /* 可收集元素（矢量按钮，px 定位在 1280×720 画布上） */
+    .collect{ position:absolute; background:transparent; border:0; cursor:pointer; }
+
+    /* —— 路灯（左侧） —— */
+    .lamp{ left:220px; top:420px; width:90px; height:220px; }
+    .lamp svg{ width:100%; height:100%; display:block; }
+
+    /* —— 围巾（中部） —— */
+    .scarf{ left:760px; top:470px; width:160px; height:90px; }
+    .scarf svg{ width:100%; height:100%; display:block; }
+
+    /* —— 蝴蝶（右上，轻微振翼） —— */
+    .butterfly{ left:980px; top:200px; width:84px; height:60px; }
+    .butterfly svg{ width:100%; height:100%; display:block; }
+    .butterfly{ animation: flutter 2.2s ease-in-out infinite; transform-origin:center; }
+    @keyframes flutter{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-4px) } }
+
+    /* 飘雪（可保留/可关闭） */
+    .snow{ position:absolute; inset:0; pointer-events:none; }
+    .flake{ position:absolute; top:-10px; width:6px; height:6px; border-radius:50%; background:#fff; opacity:.85; filter:blur(.2px); animation: fall linear infinite; }
+    @keyframes fall{ to { transform: translateY(820px) translateX(var(--dx, 0px)); opacity:.95; } }
+
+    /* Canvas 特效层（流星） */
+    #fx{ position:absolute; left:0; top:0; width:1280px; height:720px; pointer-events:none; }
+
+    /* 开发：Shift+D 显示热点边框（可选） */
+    .debug .collect{ outline:2px dashed rgba(255,180,0,.7); background:rgba(255,180,0,.06); }
+  </style>
+</head>
+<body>
+  <div id="frame">
+    <div id="world">
+      <div class="stage">
+        <div class="sky"></div>
+        <div class="stars"></div>
+        <div class="groundGlow"></div>
+        <canvas id="fx" width="1280" height="720"></canvas>
+        <div class="snow" id="snow"></div>
+      </div>
+
+      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
+      <div class="ui">
+        <button class="btn" onclick="location.href='index.html'">← 回到房间</button>
+        <button class="btn" data-reset-collect>清空进度</button>
+      </div>
+
+      <!-- ====== 矢量元素（可收集） ====== -->
+      <!-- 路灯（纯收集） -->
+      <button class="collect lamp" data-id="snow-lamp" aria-label="雪地路灯">
+        <svg viewBox="0 0 90 220" aria-hidden="true">
+          <defs>
+            <radialGradient id="g" cx="50%" cy="20%" r="60%">
+              <stop offset="0%" stop-color="#ffe8a6" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#ffe8a6" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect x="42" y="40" width="6" height="150" rx="3" fill="#93a1e8"/>
+          <circle cx="45" cy="36" r="14" fill="#c7d1ff" stroke="#93a1e8"/>
+          <circle cx="45" cy="36" r="6"  fill="#ffd57e"/>
+          <ellipse cx="45" cy="70" rx="60" ry="60" fill="url(#g)"/>
+        </svg>
+      </button>
+
+      <!-- 围巾（纯收集） -->
+      <button class="collect scarf" data-id="snow-scarf" aria-label="红围巾">
+        <svg viewBox="0 0 160 90" aria-hidden="true">
+          <path d="M10,40 C40,10 120,10 150,40 C130,70 40,80 10,60 Z" fill="#ff8e8e" stroke="#ff6d6d" stroke-width="3"/>
+          <path d="M120,55 C130,70 130,85 120,88 C110,86 108,70 112,58 Z" fill="#ff6d6d" />
+          <path d="M32,52 L36,66 M44,54 L48,68 M56,56 L60,70" stroke="#ffd1d1" stroke-width="3"/>
+        </svg>
+      </button>
+
+      <!-- 蝴蝶（收集 + 触发流星） -->
+      <button id="butterfly" class="collect butterfly" data-id="snow-butterfly" data-keepcolor="1" aria-label="蝴蝶">
+        <svg viewBox="0 0 84 60" aria-hidden="true">
+          <defs>
+            <linearGradient id="wingL" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#aee5ff"/>
+              <stop offset="100%" stop-color="#6fb9ff"/>
+            </linearGradient>
+            <linearGradient id="wingR" x1="1" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#aee5ff"/>
+              <stop offset="100%" stop-color="#6fb9ff"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="30" cy="30" rx="28" ry="20" fill="url(#wingL)" stroke="#87c8ff"/>
+          <ellipse cx="54" cy="30" rx="28" ry="20" fill="url(#wingR)" stroke="#87c8ff"/>
+          <rect x="40" y="20" width="4" height="20" rx="2" fill="#3a4e7a"/>
+          <path d="M42 18 Q38 8 33 6" stroke="#3a4e7a" stroke-width="2" fill="none"/>
+          <path d="M42 18 Q46 8 51 6" stroke="#3a4e7a" stroke-width="2" fill="none"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 固定画布缩放：把 1280×720 的 world 等比缩放到 frame 内 -->
+  <script>
+    (function(){
+      const DESIGN_W = 1280, DESIGN_H = 720;
+      const frame = document.getElementById('frame');
+      const world = document.getElementById('world');
+      function layout(){
+        const vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
+        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        const w = Math.min(vw, vh * 16/9);
+        const h = w * 9/16;
+        frame.style.width = w + 'px';
+        frame.style.height = h + 'px';
+        const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+        world.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      layout();
+      window.addEventListener('resize', layout);
+      window.addEventListener('orientationchange', layout);
+    })();
+  </script>
+
+  <!-- 飘雪 & 流星特效 -->
+  <script>
+    // —— (1) 飘雪 ——
+    (function(){
+      const container = document.getElementById('snow');
+      const FLAKES = 70; // 数量
+      for(let i=0;i<FLAKES;i++){
+        const f = document.createElement('div');
+        f.className = 'flake';
+        const size = Math.random()*4 + 2; // 2-6 px
+        const left = Math.random()*1280;  // 画布宽度范围内
+        const dur = Math.random()*6 + 6;  // 6-12s
+        const delay = Math.random()*-12;  // 负延迟
+        const dx = (Math.random()*80 - 40)+'px';
+        f.style.width = f.style.height = size+'px';
+        f.style.left = left+'px';
+        f.style.animationDuration = dur+'s';
+        f.style.animationDelay = delay+'s';
+        f.style.setProperty('--dx', dx);
+        container.appendChild(f);
+      }
+    })();
+
+    // —— (2) 流星：Canvas 写意拖尾 ——
+    (function(){
+      const canvas = document.getElementById('fx');
+      const ctx = canvas.getContext('2d');
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      // 放大画布，提高清晰度
+      canvas.width = 1280 * dpr; canvas.height = 720 * dpr; ctx.scale(dpr, dpr);
+
+      let meteors = []; let raf = null;
+
+      function loop(){
+        // 褪色：留下拖尾
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(15,20,50,0.35)';
+        ctx.fillRect(0,0,1280,720);
+        ctx.globalCompositeOperation = 'lighter';
+
+        for(let i=meteors.length-1;i>=0;i--){
+          const m = meteors[i];
+          // 更新
+          m.x += m.vx; m.y += m.vy; m.life -= 0.016;
+          m.vx *= 0.997; m.vy *= 1.001; // 轻微重力
+          m.history.push({x:m.x, y:m.y}); if(m.history.length>20) m.history.shift();
+
+          // 绘制拖尾
+          for(let j=0;j<m.history.length-1;j++){
+            const p1 = m.history[j], p2 = m.history[j+1];
+            const alpha = j / m.history.length;
+            ctx.strokeStyle = `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${alpha*0.7})`;
+            ctx.lineWidth = Math.max(1, 4 * alpha);
+            ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+          }
+          // 核心亮点
+          const grd = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 14);
+          grd.addColorStop(0, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},1)`);
+          grd.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(m.x, m.y, 14, 0, Math.PI*2); ctx.fill();
+
+          // 结束条件
+          if(m.life<=0 || m.x<-100 || m.y>820) meteors.splice(i,1);
+        }
+        if(meteors.length===0){ cancelAnimationFrame(raf); raf=null; return; }
+        raf = requestAnimationFrame(loop);
+      }
+
+      // 对外：从 (sx,sy) 向左下划过一颗流星
+      window.spawnMeteor = function(sx, sy, color='cool'){
+        const palette = color==='warm' ? [255, 210, 120] : [170, 210, 255];
+        const m = {
+          x: sx, y: sy, vx: -10 - Math.random()*4, vy: 6 + Math.random()*2,
+          life: 1.2, color: palette, history: []
+        };
+        m.history.push({x:m.x, y:m.y});
+        meteors.push(m);
+        if(!raf) raf = requestAnimationFrame(loop);
+      }
+    })();
+  </script>
+
+  <!-- 点击蝴蝶：收集 & 划过流星 -->
+  <script>
+    const butterfly = document.getElementById('butterfly');
+    butterfly.addEventListener('click', () => {
+      // 在蝴蝶上方一点生成流星
+      const rect = butterfly.getBoundingClientRect();
+      const worldRect = document.getElementById('world').getBoundingClientRect();
+      // 将屏幕坐标换算到 1280×720 世界坐标
+      const scale = worldRect.width / 1280;
+      const sx = (rect.left - worldRect.left + rect.width*0.7) / scale; // 稍靠右
+      const sy = (rect.top - worldRect.top) / scale - 40;               // 上方
+      window.spawnMeteor(sx, sy, 'cool');
+    });
+
+    // 开发辅助：Shift+D 切换热点可视化
+    document.addEventListener('keydown', (e)=>{
+      if(e.shiftKey && e.key.toLowerCase()==='d'){
+        document.getElementById('world').classList.toggle('debug');
+      }
+    });
+  </script>
+
+  <!-- 收集脚本（会话内计数 / 你现有的 v3.1 即可） -->
+  <script defer src="./js/collect.js"></script>
+</body>
+</html>
