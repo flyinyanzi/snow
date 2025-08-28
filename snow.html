@@ -73,6 +73,23 @@
 
     /* 调试：Shift+D */
     .debug .collect{ outline:2px dashed rgba(255,180,0,.7); background:rgba(255,180,0,.06); }
+
+    /* 画围巾用的手势画布：禁止触摸滚动/双指缩放 */
+    #gestureCanvas {
+      touch-action: none;            /* 阻止浏览器把手势当作滚动/缩放 */
+      -ms-touch-action: none;        /* 兼容旧 Edge */
+    }
+
+    /* 避免页面回弹、外层滚动干扰 */
+    html, body {
+      overscroll-behavior: none;     /* 阻止上拉/下拉带动外层 */
+    }
+
+    /* （可选）进入手势阶段时给 frame 加这个类，可以更激进地锁定滚动 */
+    .lock-scroll {
+      touch-action: none;
+      overscroll-behavior: contain;
+    }
   </style>
 </head>
 <body>
@@ -280,9 +297,26 @@
       function start(p){ tracking=true; lastAngle=angleOf(p); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
       function move(p){ if(!tracking||phase!==2) return; const a=angleOf(p); let d=a-lastAngle; if(d>Math.PI)d-=Math.PI*2; else if(d<-Math.PI)d+=Math.PI*2; const r=dist(p,center); if(r>40&&r<110){ sumAngle+=Math.abs(d); ctx.strokeStyle='rgba(170,210,255,.6)'; ctx.lineWidth=3; ctx.lineTo(p.x,p.y); ctx.stroke(); } lastAngle=a; if(sumAngle>=Math.PI*1.6){ unlockScarf(); } }
       function end(){ tracking=false; lastAngle=null; }
-      canvas.addEventListener('pointerdown', e=>{ if(phase!==2) return; start(local(e)); });
-      canvas.addEventListener('pointermove', e=> move(local(e)) );
-      window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+      // —— 手势识别绑定（替换原来的三行监听）——
+      canvas.addEventListener('pointerdown', (e) => {
+        if (phase !== 2) return;
+        e.preventDefault();                      // 阻止页面滚动
+        canvas.setPointerCapture?.(e.pointerId); // 捕获指针，后续移动都交给这个 canvas
+        start(local(e));
+      }, { passive: false });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (phase !== 2 || !tracking) return;
+        e.preventDefault();                      // 阻止页面滚动
+        move(local(e));
+      }, { passive: false });
+
+      window.addEventListener('pointerup', (e) => {
+        if (tracking) {
+          canvas.releasePointerCapture?.(e.pointerId);
+        }
+        end();
+      }, { passive: false });
 
       function unlockScarf(){ if(phase!==2)return; phase=3; hint.classList.remove('show'); canvas.style.opacity=0; scarfBtn.classList.add('unlock'); neckPulse(640,425); }
 
