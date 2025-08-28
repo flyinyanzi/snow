@@ -350,7 +350,26 @@
     document.addEventListener('keydown',(e)=>{ if(e.shiftKey && e.key.toLowerCase()==='d'){ document.getElementById('world').classList.toggle('debug'); } });
   </script>
 
-  <!-- 收集脚本（会话内计数） -->
-  <script defer src="./js/collect.js"></script>
+  <script defer src="./js/collect.js"
+    onerror="(function(){
+    console.warn('[collect] 外部 collect.js 加载失败，启用兜底逻辑');
+    function collectTarget(el){
+      if(!el || !el.classList || !el.classList.contains('collect')) return;
+      if(el.dataset.collected==='1' || el.classList.contains('collected')) return;
+      el.dataset.collected='1';
+      el.classList.add('collected');
+      // 计数 UI（若存在）
+      try{
+        var cnt=document.querySelector('#collect-counter [data-count]');
+        var ttl=document.querySelector('#collect-counter [data-total]');
+        if(cnt){ cnt.textContent = (parseInt(cnt.textContent||'0',10)+1).toString(); }
+      }catch(e){}
+    }
+    document.addEventListener('click', function(e){
+      var t=e.target.closest && e.target.closest('.collect');
+      if(!t) return;
+      collectTarget(t);
+    }, true);
+  })()"></script>
 </body>
 </html>
