@@ -37,8 +37,8 @@
     /* 可收集元素 */
     .collect{ position:absolute; background:transparent; border:0; cursor:pointer; }
 
-    /* 路灯：显著加高；在 z=3 */
-    .lamp{ left:220px; top:330px; width:110px; height:320px; z-index:3; }
+    /* 路灯：显著加高；升高层级以免被覆盖 z=18 */
+    .lamp{ left:220px; top:330px; width:110px; height:320px; z-index:18; }
     .lamp svg{ width:100%; height:100%; display:block; }
     .lamp svg #bulb{ transition: fill .6s ease, filter .6s ease; fill:#3a4e7a; filter:none; }
     .lamp.on svg #bulb{ fill:#ffd57e; filter: drop-shadow(0 0 10px rgba(255,216,140,.9)); }
