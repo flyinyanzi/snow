@@ -90,6 +90,17 @@
       touch-action: none;
       overscroll-behavior: contain;
     }
+
+    /* 收集后保持原色：带 data-keepcolor="1" 的元素不做变灰/降透明/灰度 */
+    .collect[data-keepcolor="1"].collected,
+    .collect.collected[data-keepcolor="1"],
+    .collect[data-keepcolor="1"].done,
+    .collect.done[data-keepcolor="1"],
+    .collect[data-keepcolor="1"][data-collected="1"]{
+      filter: none !important;
+      -webkit-filter: none !important;
+      opacity: 1 !important;
+    }
   </style>
 </head>
 <body>
@@ -110,7 +121,7 @@
       </div>
 
       <!-- 路灯（更高更大） -->
-      <button id="lamp" class="collect lamp" data-id="snow-lamp" aria-label="雪地路灯">
+      <button id="lamp" class="collect lamp" data-id="snow-lamp" data-keepcolor="1" aria-label="雪地路灯">
         <svg viewBox="0 0 110 320" aria-hidden="true">
           <rect x="52" y="70" width="6" height="220" rx="3" fill="#93a1e8"/>
           <circle cx="55" cy="60" r="18" fill="#c7d1ff" stroke="#93a1e8"/>
@@ -129,7 +140,7 @@
       <div id="couple-wrap" class="couple-wrap">
         <img id="girl1" class="couple-img show" src="./assets/girl_heart.png" style="left:640px; top:360px; width:320px; height:auto;">
         <img id="couple2" class="couple-img" src="./assets/couple_hug.png" style="left:640px; top:360px; width:320px; height:auto;">
-        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" style="left:630px; top:310px; width:220px; height:auto;">
+        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" data-keepcolor="1" style="left:630px; top:310px; width:220px; height:auto;">
           <img src="./assets/scarf_link.png"/>
         </button>
         <div id="scarfHint" class="scarf-hint" style="left:640px; top:600px;">给 ta 们系上同一条围巾吧</div>
