@@ -69,6 +69,17 @@
 
     /* 开发：Shift+D 显示热点边框（可选） */
     .debug .collect{ outline:2px dashed rgba(255,180,0,.7); background:rgba(255,180,0,.06); }
+    /* —— 围巾互动样式 —— */
+    .couple-wrap{ position:absolute; inset:0; pointer-events:none; }
+    .couple-img{ position:absolute; transform:translate(-50%,-50%); opacity:0; transition:opacity .6s ease; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); pointer-events:auto; }
+    .couple-img.show{ opacity:1; }
+    #gestureCanvas{ position:absolute; transform:translate(-50%,-50%); pointer-events:auto; opacity:0; transition:opacity .4s ease; }
+    .scarf-btn{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; padding:0; opacity:0; pointer-events:none; transition:opacity .5s ease; }
+    .scarf-btn img{ width:100%; height:100%; display:block; filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+    .scarf-btn.unlock{ opacity:1; pointer-events:auto; }
+    .scarf-hint{ position:absolute; transform:translate(-50%,-50%); color:#fff; opacity:0; font:16px/1.4 system-ui; background:#0007; border:1px solid rgba(255,255,255,.25); padding:6px 10px; border-radius:10px; pointer-events:none; transition:opacity .5s ease; }
+    .scarf-hint.show{ opacity:1; }
+    .heart-hotspot{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; pointer-events:auto; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -107,15 +118,27 @@
         </svg>
       </button>
 
-      <!-- 围巾（纯收集） -->
-      <button class="collect scarf" data-id="snow-scarf" aria-label="红围巾">
-        <svg viewBox="0 0 160 90" aria-hidden="true">
-          <path d="M10,40 C40,10 120,10 150,40 C130,70 40,80 10,60 Z" fill="#ff8e8e" stroke="#ff6d6d" stroke-width="3"/>
-          <path d="M120,55 C130,70 130,85 120,88 C110,86 108,70 112,58 Z" fill="#ff6d6d" />
-          <path d="M32,52 L36,66 M44,54 L48,68 M56,56 L60,70" stroke="#ffd1d1" stroke-width="3"/>
-        </svg>
-      </button>
-
+      <!-- 围巾互动 · 四步法 -->
+      <div id="couple-wrap" class="couple-wrap" aria-label="围巾互动区">
+        <!-- 抱心女孩（初始显示） -->
+        <img id="girl1" class="couple-img show" src="./assets/girl_heart.png" alt="抱着红心的女孩"
+             style="left:640px; top:360px; width:400px; height:auto;">
+        <!-- 拥抱的两人（点击心后显示） -->
+        <img id="couple2" class="couple-img" src="./assets/couple_hug.png" alt="拥抱的两人"
+             style="left:640px; top:360px; width:400px; height:auto;">
+        <!-- 围巾（解锁后显示在颈部位置） -->
+        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" aria-label="同一条围巾"
+                style="left:640px; top:440px; width:280px; height:auto;">
+          <img src="./assets/scarf_link.png" alt="围在两人脖子上的围巾"/>
+        </button>
+        <!-- 提示文案 -->
+        <div id="scarfHint" class="scarf-hint" style="left:640px; top:600px;">给 ta 们系上同一条围巾吧</div>
+        <!-- 点击心形的热区（可调整位置大小） -->
+        <button id="heartHotspot" class="heart-hotspot" aria-label="点击红心"
+                style="left:780px; top:420px; width:80px; height:80px;"></button>
+        <!-- 手势画布：覆盖两人颈部区域，用于检测绕圈动作 -->
+        <canvas id="gestureCanvas" width="400" height="240" style="left:640px; top:360px;"></canvas>
+      </div>
       <!-- 蝴蝶（收集 + 触发流星→点亮路灯） -->
       <button id="butterfly" class="collect butterfly" data-id="snow-butterfly" data-keepcolor="1" aria-label="蝴蝶">
         <svg viewBox="0 0 84 60" aria-hidden="true">
@@ -158,6 +181,69 @@
       layout();
       window.addEventListener('resize', layout);
       window.addEventListener('orientationchange', layout);
+    })();
+  </script>
+
+  <!-- ===== 围巾互动脚本：点击心 → 显示拥抱图 + 提示；绕圈手势 → 解锁围巾按钮（点击收集） ===== -->
+  <script>
+    (function(){
+      const girl1 = document.getElementById('girl1');
+      const couple2 = document.getElementById('couple2');
+      const heart = document.getElementById('heartHotspot');
+      const hint = document.getElementById('scarfHint');
+      const canvas = document.getElementById('gestureCanvas');
+      const scarfBtn = document.getElementById('scarfBtn');
+      const ctx = canvas.getContext('2d');
+      let phase = 1; // 1=女孩 2=拥抱(等待手势) 3=解锁
+
+      // 点击红心：切换到拥抱图 + 提示 + 显示手势画布
+      heart.addEventListener('click', ()=>{
+        if(phase!==1) return;
+        girl1.classList.remove('show');
+        couple2.classList.add('show');
+        hint.classList.add('show');
+        canvas.style.opacity = 1;
+        phase = 2;
+      });
+
+      // 手势识别：围绕中心累计角度到达阈值即解锁
+      // 取画布中心稍偏上的点作为颈部中心（可根据素材微调）
+      const center = { x: canvas.width/2, y: canvas.height/2 - 10 };
+      let tracking = false, lastAngle = null, sumAngle = 0; // 累计角度（弧度）
+
+      function start(pointer){ tracking = true; lastAngle = angleOf(pointer); drawDot(pointer); }
+      function move(pointer){ if(!tracking || phase!==2) return; const a = angleOf(pointer); if(lastAngle==null){ lastAngle=a; return; }
+        let delta = a - lastAngle; // 处理跨 -π/π 跳变
+        if(delta > Math.PI) delta -= Math.PI*2; else if(delta < -Math.PI) delta += Math.PI*2;
+        // 只在手指处于合适半径时计入（颈部环）
+        const r = dist(pointer, center);
+        if(r>40 && r<110){ sumAngle += Math.abs(delta); drawTrail(pointer); }
+        lastAngle = a;
+        if(sumAngle >= Math.PI * 1.6){ unlockScarf(); }
+      }
+      function end(){ tracking = false; lastAngle = null; }
+
+      function angleOf(p){ return Math.atan2(p.y - center.y, p.x - center.x); }
+      function dist(p, c){ const dx=p.x-c.x, dy=p.y-c.y; return Math.hypot(dx,dy); }
+
+      // 简单可视反馈
+      function drawDot(p){ ctx.fillStyle = 'rgba(180,210,255,.6)'; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); }
+      function drawTrail(p){ ctx.strokeStyle = 'rgba(170,210,255,.6)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineTo(p.x,p.y); ctx.stroke(); }
+
+      // 指针事件（触摸/鼠标）
+      function local(evt){ const rect = canvas.getBoundingClientRect(); const x = (evt.clientX - rect.left) * (canvas.width/rect.width); const y = (evt.clientY - rect.top) * (canvas.height/rect.height); return {x,y}; }
+      canvas.addEventListener('pointerdown', e=>{ if(phase!==2) return; ctx.beginPath(); start(local(e)); });
+      canvas.addEventListener('pointermove', e=> move(local(e)) );
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+
+      function unlockScarf(){
+        if(phase!==2) return;
+        phase = 3;
+        hint.classList.remove('show');
+        canvas.style.opacity = 0;
+        scarfBtn.classList.add('unlock'); // 显示围巾按钮（点击 = 收集成功）
+      }
     })();
   </script>
 
