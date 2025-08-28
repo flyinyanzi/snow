@@ -132,8 +132,6 @@
       const audio = document.getElementById('bgm');
       let first = true;
       btn.addEventListener('click', ()=>{
-        // 播放背景音乐
-        BGM.start({ src: './assets/Nocturne op.9 No.2.mp3/' volume: 0.7 });
         // 收集（collect.js 会处理“首次点击=收集、再次点击=提示/跳转”）
         // 这里附加音乐逻辑：第一次点击后尝试播放
         if (first) {
