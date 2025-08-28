@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>雪地</title>
+  <style>
+    :root{ --ink:#eef6ff; --line:rgba(255,255,255,.25); }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{ margin:0; background:#0d1228; font-family:ui-sans-serif,system-ui; color:var(--ink); }
+
+    /* 固定画布 */
+    #frame{ position:relative; width:min(100vw, 100svh * 16/9); height:calc(min(100vw, 100svh * 16/9) * 9/16); margin:0 auto; overflow:hidden; }
+    #world{ position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center center; transform:translate(-50%, -50%) scale(1); }
+
+    /* 舞台 */
+    .stage{ position:absolute; inset:0; border-radius:24px; border:1px solid #223060; overflow:hidden; }
+    .sky{ position:absolute; inset:0; background:radial-gradient(140% 80% at 50% -10%, #6aa3ff 0%, #3857a8 55%, #1b2350 80%, #0f1330 100%); }
+    .stars{ position:absolute; inset:0; pointer-events:none; opacity:.8; background:
+      radial-gradient(1.6px 1.6px at 12% 16%, #fff 40%, transparent 60%),
+      radial-gradient(1.8px 1.8px at 32% 28%, #fff 40%, transparent 60%),
+      radial-gradient(1.4px 1.4px at 46% 12%, #fff 40%, transparent 60%),
+      radial-gradient(1.6px 1.6px at 70% 22%, #fff 40%, transparent 60%),
+      radial-gradient(1.4px 1.4px at 86% 18%, #fff 40%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 24% 44%, #fff 40%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 62% 40%, #fff 40%, transparent 60%),
+      radial-gradient(1.3px 1.3px at 78% 46%, #fff 40%, transparent 60%);
+    }
+    .groundGlow{ position:absolute; left:-80px; right:-80px; bottom:-80px; height:380px; background: radial-gradient(60% 60% at 50% 10%, rgba(255,255,255,.55), rgba(255,255,255,.12) 70%, transparent 80%); }
+
+    /* UI */
+    .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:20; }
+    .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#ffffff20; color:#fff; cursor:pointer; }
+    #collect-counter{ position:absolute; left:16px; top:16px; background:#0006; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:20; }
+
+    /* 可收集元素 */
+    .collect{ position:absolute; background:transparent; border:0; cursor:pointer; }
+
+    /* 路灯：显著加高；升高层级以免被覆盖 z=18 */
+    .lamp{ left:220px; top:330px; width:110px; height:320px; z-index:18; }
+    .lamp svg{ width:100%; height:100%; display:block; }
+    .lamp svg #bulb{ transition: fill .6s ease, filter .6s ease; fill:#3a4e7a; filter:none; }
+    .lamp.on svg #bulb{ fill:#ffd57e; filter: drop-shadow(0 0 10px rgba(255,216,140,.9)); }
+    .lamp svg #glow{ opacity:0; transition: opacity .8s ease; }
+    .lamp.on svg #glow{ opacity:1; }
+
+    /* 围巾互动层：容器不接收事件，交互元素单独开启；z=10 */
+    .couple-wrap{ position:absolute; inset:0; pointer-events:auto; z-index:10; }
+    .couple-img{ position:absolute; transform:translate(-50%,-50%); opacity:0; transition:opacity .6s ease; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); pointer-events:none; }
+    .couple-img.show{ opacity:1; }
+    #gestureCanvas{ position:absolute; transform:translate(-50%,-50%); pointer-events:auto; opacity:0; transition:opacity .4s ease; z-index:12; }
+    .scarf-btn{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; padding:0; opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:13; }
+    .scarf-btn img{ width:100%; height:auto; display:block; filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+    .scarf-btn.unlock{ opacity:1; pointer-events:auto; }
+    .scarf-hint{ position:absolute; transform:translate(-50%,-50%); color:#fff; opacity:0; font:16px/1.4 system-ui; background:#0007; border:1px solid rgba(255,255,255,.25); padding:6px 10px; border-radius:10px; pointer-events:none; transition:opacity .5s ease; z-index:14; }
+    .scarf-hint.show{ opacity:1; }
+    .heart-hotspot{ position:absolute; transform:translate(-50%,-50%); cursor:pointer; pointer-events:auto; z-index:15; }
+
+    /* 飘雪在最上但不拦事件 */
+    .snow{ position:absolute; inset:0; pointer-events:none; z-index:30; }
+    .flake{ position:absolute; top:-10px; width:6px; height:6px; border-radius:50%; background:#fff; opacity:.85; filter:blur(.2px); animation: fall linear infinite; }
+    @keyframes fall{ to { transform: translateY(820px) translateX(var(--dx, 0px)); opacity:.95; } }
+
+    /* 流星层 */
+    #fx{ position:absolute; left:0; top:0; width:1280px; height:720px; pointer-events:none; z-index:25; }
+
+    /* ✅ 新增：烟花层（在流星之上、在雪之下或之上均可，这里放在雪之下） */
+    #fw{ position:absolute; left:0; top:0; width:1280px; height:720px; pointer-events:none; z-index:28; }
+
+    #hintText{ position:absolute; left:50%; top:65%; transform:translateX(-50%); color:#fff; font:18px/1.4 "KaiTi",serif; opacity:0; pointer-events:none; transition:opacity 1s ease; white-space:nowrap; z-index:40; }
+
+    /* 围巾解锁时颈部暖色脉冲（z=16）*/
+    .pulse{ position:absolute; left:0; top:0; width:160px; height:160px; border-radius:50%; pointer-events:none; background:radial-gradient(circle at center, rgba(255,220,140,.6), rgba(255,220,140,.25) 40%, rgba(255,220,140,0) 70%); filter:blur(2px); opacity:0; transform:translate(-50%, -50%) scale(.6); animation:pulseOut .9s ease-out forwards; z-index:16; }
+    @keyframes pulseOut{ 0%{ opacity:.0; transform:translate(-50%,-50%) scale(.6);} 20%{opacity:.9;} 100%{ opacity:0; transform:translate(-50%,-50%) scale(1.6);} }
+
+    /* 调试：Shift+D */
+    .debug .collect{ outline:2px dashed rgba(255,180,0,.7); background:rgba(255,180,0,.06); }
+
+    /* 画围巾用的手势画布：禁止触摸滚动/双指缩放 */
+    #gestureCanvas { touch-action: none; -ms-touch-action: none; }
+
+    /* 避免页面回弹、外层滚动干扰 */
+    html, body { overscroll-behavior: none; }
+
+    .lock-scroll { touch-action: none; overscroll-behavior: contain; }
+
+    /* 收集后保持原色：带 data-keepcolor="1" 的元素不做变灰/降透明/灰度 */
+    .collect[data-keepcolor="1"].collected,
+    .collect.collected[data-keepcolor="1"],
+    .collect[data-keepcolor="1"].done,
+    .collect.done[data-keepcolor="1"],
+    .collect[data-keepcolor="1"][data-collected="1"]{
+      filter: none !important;
+      -webkit-filter: none !important;
+      opacity: 1 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="frame">
+    <div id="world">
+      <div class="stage">
+        <div class="sky"></div>
+        <div class="stars"></div>
+        <div class="groundGlow"></div>
+
+        <canvas id="fx" width="1280" height="720"></canvas>
+        <!-- ✅ 新增：烟花画布 -->
+        <canvas id="fw" width="1280" height="720"></canvas>
+
+        <div class="snow" id="snow"></div>
+      </div>
+
+      <div id="collect-counter">收集：<span data-count>0</span>/<span data-total>7</span></div>
+      <div class="ui">
+        <button class="btn" onclick="location.href='index.html'">← 回到房间</button>
+        <button class="btn" data-reset-collect>清空进度</button>
+      </div>
+
+      <!-- 路灯（更高更大） -->
+      <button id="lamp" class="collect lamp" data-id="snow-lamp" data-keepcolor="1" aria-label="雪地路灯">
+        <svg viewBox="0 0 110 320" aria-hidden="true">
+          <rect x="52" y="70" width="6" height="220" rx="3" fill="#93a1e8"/>
+          <circle cx="55" cy="60" r="18" fill="#c7d1ff" stroke="#93a1e8"/>
+          <circle id="bulb" cx="55" cy="60" r="8"/>
+          <g id="glow">
+            <radialGradient id="lampGlow" cx="50%" cy="20%" r="60%">
+              <stop offset="0%" stop-color="#ffe8a6" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#ffe8a6" stop-opacity="0"/>
+            </radialGradient>
+            <ellipse cx="55" cy="100" rx="80" ry="80" fill="url(#lampGlow)"/>
+          </g>
+        </svg>
+      </button>
+
+      <!-- 围巾互动（人物更小） -->
+      <div id="couple-wrap" class="couple-wrap">
+        <img id="girl1" class="couple-img show" src="./assets/girl_heart.png" style="left:640px; top:360px; width:320px; height:auto;">
+        <img id="couple2" class="couple-img" src="./assets/couple_hug.png" style="left:640px; top:360px; width:320px; height:auto;">
+        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" data-keepcolor="1" style="left:630px; top:310px; width:220px; height:auto;">
+          <img src="./assets/scarf_link.png"/>
+        </button>
+        <div id="scarfHint" class="scarf-hint" style="left:640px; top:600px;">给 ta 们系上同一条围巾吧</div>
+        <!-- 心形命中区域（SVG Path） -->
+        <svg id="heartHotspot" class="heart-hotspot" width="96" height="96" viewBox="0 0 100 100" style="left:690px; top:290px;">
+          <path id="heartPath" d="M50 84 L20 54 C9 43 9 25 23 16 C31 11 42 12 49 19 C56 12 67 11 75 16 C89 25 91 43 80 54 Z" fill="rgba(255,0,0,0.001)" stroke="transparent" />
+        </svg>
+        <canvas id="gestureCanvas" width="360" height="220" style="left:640px; top:290px;"></canvas>
+      </div>
+
+      <!-- 蝴蝶（右上角） -->
+      <button id="butterfly" class="collect butterfly" data-id="snow-butterfly" data-keepcolor="1" aria-label="蝴蝶" style="left:980px; top:200px; width:84px; height:60px; z-index:18;">
+        <svg viewBox="0 0 84 60" aria-hidden="true" width="84" height="60">
+          <defs>
+            <linearGradient id="wingL" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#aee5ff"/>
+              <stop offset="100%" stop-color="#6fb9ff"/>
+            </linearGradient>
+            <linearGradient id="wingR" x1="1" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#aee5ff"/>
+              <stop offset="100%" stop-color="#6fb9ff"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="30" cy="30" rx="28" ry="20" fill="url(#wingL)" stroke="#87c8ff"/>
+          <ellipse cx="54" cy="30" rx="28" ry="20" fill="url(#wingR)" stroke="#87c8ff"/>
+          <rect x="40" y="20" width="4" height="20" rx="2" fill="#3a4e7a"/>
+          <path d="M42 18 Q38 8 33 6" stroke="#3a4e7a" stroke-width="2" fill="none"/>
+          <path d="M42 18 Q46 8 51 6" stroke="#3a4e7a" stroke-width="2" fill="none"/>
+        </svg>
+      </button>
+
+      <div id="hintText">蝴蝶化作流星划过天际，路灯亮了。</div>
+    </div>
+  </div>
+
+  <!-- 缩放布局 -->
+  <script>
+    (function(){
+      const DESIGN_W = 1280, DESIGN_H = 720;
+      const frame = document.getElementById('frame');
+      const world = document.getElementById('world');
+      function layout(){
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const w = Math.min(vw, vh * 16/9), h = w * 9/16;
+        frame.style.width = w + 'px'; frame.style.height = h + 'px';
+        const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
+        world.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+      layout();
+      window.addEventListener('resize', layout);
+      window.addEventListener('orientationchange', layout);
+    })();
+  </script>
+
+  <!-- 飘雪生成 -->
+  <script>
+    (function(){
+      const container = document.getElementById('snow');
+      const FLAKES = 70;
+      for(let i=0;i<FLAKES;i++){
+        const f=document.createElement('div'); f.className='flake';
+        const size=Math.random()*4+2; const left=Math.random()*1280;
+        const dur=Math.random()*6+6; const delay=Math.random()*-12;
+        const dx=(Math.random()*80-40)+'px';
+        f.style.width=f.style.height=size+'px'; f.style.left=left+'px';
+        f.style.animationDuration=dur+'s'; f.style.animationDelay=delay+'s';
+        f.style.setProperty('--dx',dx); container.appendChild(f);
+      }
+    })();
+  </script>
+
+  <!-- 流星（加彻底清屏） -->
+  <script>
+    (function(){
+      const canvas=document.getElementById('fx'); const ctx=canvas.getContext('2d');
+      const dpr=Math.max(1,window.devicePixelRatio||1);
+      canvas.width=1280*dpr; canvas.height=720*dpr; ctx.scale(dpr,dpr);
+      let meteors=[]; let raf=null; let fadeFrames=0;
+      function loop(){
+        ctx.globalCompositeOperation='destination-out';
+        ctx.fillStyle='rgba(15,20,50,0.35)'; ctx.fillRect(0,0,1280,720);
+        ctx.globalCompositeOperation='lighter';
+        for(let i=meteors.length-1;i>=0;i--){
+          const m=meteors[i]; m.x+=m.vx; m.y+=m.vy; m.life-=0.016;
+          m.vx*=0.997; m.vy*=1.001;
+          m.history.push({x:m.x,y:m.y}); if(m.history.length>20) m.history.shift();
+          for(let j=0;j<m.history.length-1;j++){
+            const p1=m.history[j], p2=m.history[j+1];
+            const alpha=j/m.history.length;
+            ctx.strokeStyle=`rgba(${m.color[0]},${m.color[1]},${m.color[2]},${alpha*0.7})`;
+            ctx.lineWidth=Math.max(1,4*alpha);
+            ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+          }
+          const grd=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,14);
+          grd.addColorStop(0,`rgba(${m.color[0]},${m.color[1]},${m.color[2]},1)`);
+          grd.addColorStop(1,'rgba(255,255,255,0)');
+          ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(m.x,m.y,14,0,Math.PI*2); ctx.fill();
+          if(m.life<=0||m.x<-60||m.y>720){ const done=m.done; meteors.splice(i,1); if(done)done(); }
+        }
+        if(meteors.length===0){
+          if(fadeFrames++>18){ ctx.clearRect(0,0,1280,720); cancelAnimationFrame(raf); raf=null; fadeFrames=0; return; }
+        } else { fadeFrames=0; }
+        raf=requestAnimationFrame(loop);
+      }
+      window.spawnMeteor=function(sx,sy,color='cool'){
+        return new Promise(resolve=>{
+          const palette=color==='warm'?[255,210,120]:[170,210,255];
+          const m={x:sx,y:sy,vx:-10-Math.random()*4,vy:6+Math.random()*2,life:1.3,color:palette,history:[],done:resolve};
+          m.history.push({x:m.x,y:m.y}); meteors.push(m);
+          if(!raf)raf=requestAnimationFrame(loop);
+        });
+      }
+    })();
+  </script>
+
+  <!-- 蝴蝶：流星→点灯→柔雪+提示 -->
+  <script>
+    const butterfly=document.getElementById('butterfly');
+    const lamp=document.getElementById('lamp');
+    butterfly.addEventListener('click',()=>{
+      const rect=butterfly.getBoundingClientRect();
+      const worldRect=document.getElementById('world').getBoundingClientRect();
+      const scale=worldRect.width/1280;
+      const sx=(rect.left-worldRect.left+rect.width*0.7)/scale;
+      const sy=(rect.top-worldRect.top)/scale-40;
+      window.spawnMeteor(sx,sy,'cool').then(()=>{
+        lamp.classList.add('on');
+        softenSnow();
+        setTimeout(showHint,600);
+      });
+    });
+    function softenSnow(){ document.querySelectorAll('.flake').forEach(f=>{ const d=parseFloat(getComputedStyle(f).animationDuration)||8; f.style.animationDuration=(d*1.6).toFixed(2)+'s'; f.style.opacity='0.7'; if(Math.random()<0.33)f.remove(); }); }
+    function showHint(){ const h=document.getElementById('hintText'); h.style.opacity=1; setTimeout(()=>{h.style.opacity=0;},2600); }
+  </script>
+
+  <!-- 围巾互动 -->
+  <script>
+    (function(){
+      const girl1=document.getElementById('girl1');
+      const couple2=document.getElementById('couple2');
+      const heartPath=document.getElementById('heartPath');
+      const hint=document.getElementById('scarfHint');
+      const canvas=document.getElementById('gestureCanvas');
+      const scarfBtn=document.getElementById('scarfBtn');
+      const ctx=canvas.getContext('2d');
+      let phase=1; let tracking=false,lastAngle=null,sumAngle=0;
+
+      // 心形 Path 命中
+      heartPath.style.pointerEvents = 'visiblePainted';
+      heartPath.addEventListener('click', ()=>{
+        if (phase !== 1) return;
+        girl1.classList.remove('show');
+        couple2.classList.add('show');
+        hint.classList.add('show');
+        canvas.style.opacity = 1;
+        phase = 2;
+      });
+
+      // 手势：绕圈累计角度
+      const center={ x: canvas.width/2, y: canvas.height/2 - 10 };
+      function angleOf(p){ return Math.atan2(p.y - center.y, p.x - center.x); }
+      function dist(p,c){ return Math.hypot(p.x-c.x,p.y-c.y); }
+      function local(evt){ const r=canvas.getBoundingClientRect(); const x=(evt.clientX-r.left)*(canvas.width/r.width); const y=(evt.clientY-r.top)*(canvas.height/r.height); return {x,y}; }
+      function start(p){ tracking=true; lastAngle=angleOf(p); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+      function move(p){ if(!tracking||phase!==2) return; const a=angleOf(p); let d=a-lastAngle; if(d>Math.PI)d-=Math.PI*2; else if(d<-Math.PI)d+=Math.PI*2; const r=dist(p,center); if(r>40&&r<110){ sumAngle+=Math.abs(d); ctx.strokeStyle='rgba(170,210,255,.6)'; ctx.lineWidth=3; ctx.lineTo(p.x,p.y); ctx.stroke(); } lastAngle=a; if(sumAngle>=Math.PI*1.6){ unlockScarf(); } }
+      function end(){ tracking=false; lastAngle=null; }
+
+      canvas.addEventListener('pointerdown', (e) => { if (phase !== 2) return; e.preventDefault(); canvas.setPointerCapture?.(e.pointerId); start(local(e)); }, { passive: false });
+      canvas.addEventListener('pointermove', (e) => { if (phase !== 2 || !tracking) return; e.preventDefault(); move(local(e)); }, { passive: false });
+      window.addEventListener('pointerup', (e) => { if (tracking) canvas.releasePointerCapture?.(e.pointerId); end(); }, { passive: false });
+
+      function unlockScarf(){ if(phase!==2)return; phase=3; hint.classList.remove('show'); canvas.style.opacity=0; scarfBtn.classList.add('unlock'); neckPulse(640,425); }
+
+      // 围巾像素命中（透明不算点击）
+      (function(){
+        const imgEl = scarfBtn.querySelector('img');
+        const off=document.createElement('canvas'); const ictx=off.getContext('2d'); let natW=0,natH=0;
+        function draw(){ natW=imgEl.naturalWidth; natH=imgEl.naturalHeight; off.width=natW; off.height=natH; ictx.clearRect(0,0,natW,natH); ictx.drawImage(imgEl,0,0); }
+        imgEl.addEventListener('load', draw); if(imgEl.complete) draw();
+        scarfBtn.addEventListener('click',(e)=>{
+          const rect=scarfBtn.getBoundingClientRect(); const x=(e.clientX-rect.left)/rect.width*natW; const y=(e.clientY-rect.top)/rect.height*natH; const a=ictx.getImageData(Math.max(0,Math.floor(x)), Math.max(0,Math.floor(y)),1,1).data[3]; if(a<10){ e.stopPropagation(); e.preventDefault(); }
+        }, true);
+      })();
+    })();
+
+    // 颈部暖色脉冲
+    function neckPulse(x,y){ const world=document.getElementById('world'); const p=document.createElement('div'); p.className='pulse'; p.style.left=x+'px'; p.style.top=y+'px'; world.appendChild(p); setTimeout(()=>p.remove(), 1000); }
+
+    // 调试快捷键
+    document.addEventListener('keydown',(e)=>{ if(e.shiftKey && e.key.toLowerCase()==='d'){ document.getElementById('world').classList.toggle('debug'); } });
+  </script>
+
+  <!-- ✅ 写意烟花引擎 & 覆写 fireworks & 进入雪地页时“已满补播” -->
+  <script>
+  // —— 写意烟花引擎 —— //
+  (function(){
+    const canvas = document.getElementById('fw');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const DPR = Math.max(1, window.devicePixelRatio || 1);
+    const W = 1280, H = 720;
+    canvas.width = W * DPR; canvas.height = H * DPR; ctx.scale(DPR, DPR);
+
+    let raf = null;
+    const particles = [];
+    let fadeAlpha = 0.14;
+    const grav = 0.08;
+    const air  = 0.992;
+    const HSLA = (h,s,l,a=1)=>`hsla(${h},${s}%,${l}%,${a})`;
+
+    function spawnBloom(x, y, opts={}){
+      const count = opts.count ?? 90;
+      const hue   = opts.hue   ?? (200 + Math.random()*120);
+      const spread= opts.spread?? (Math.PI*2);
+      const speed = opts.speed ?? 4.6;
+      const bokeh = opts.bokeh ?? 0.22;
+      const ink   = opts.ink   ?? 0.25;
+      for(let i=0;i<count;i++){
+        const ang = i/count * spread + (Math.random()-0.5)*0.16;
+        const spd = speed * (0.85 + Math.random()*0.35);
+        particles.push({
+          x, y,
+          vx: Math.cos(ang)*spd,
+          vy: Math.sin(ang)*spd*(0.82+Math.random()*0.3),
+          life: 0.9 + Math.random()*0.9,
+          age: 0,
+          r: (Math.random()<bokeh) ? (2.2+Math.random()*3.0) : (1.2+Math.random()*1.8),
+          hue: hue + (Math.random()*18-9),
+          sat: 72 + Math.random()*18,
+          lig: 55 + Math.random()*15,
+          ink: Math.random()<ink,
+          trail: []
+        });
+      }
+    }
+    function burst(x,y){
+      const baseHue = Math.random()<0.5 ? (210+Math.random()*40) : (20+Math.random()*40);
+      spawnBloom(x,y,{count:110,hue:baseHue,speed:5.2,bokeh:0.28,ink:0.3});
+      spawnBloom(x,y,{count:60,hue:baseHue+(Math.random()<0.5?-25:25),speed:3.8,bokeh:0.16,ink:0.18});
+    }
+    function update(dt){
+      ctx.globalCompositeOperation='destination-out';
+      ctx.fillStyle=`rgba(10,14,28,${fadeAlpha})`;
+      ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation='lighter';
+      for(let i=particles.length-1;i>=0;i--){
+        const p=particles[i];
+        p.age += dt;
+        if(p.age>=p.life){ particles.splice(i,1); continue; }
+        p.vx*=air; p.vy=p.vy*air + grav*dt*60;
+        p.x+=p.vx; p.y+=p.vy;
+        p.trail.push({x:p.x,y:p.y}); if(p.trail.length>10) p.trail.shift();
+        const t=p.age/p.life, alpha=(1-t)*(p.ink?0.75:0.95);
+        const color=HSLA(p.hue,p.sat,p.lig,alpha);
+        // 拖线
+        ctx.strokeStyle=color;
+        ctx.lineWidth=Math.max(0.6, p.r*(1-t));
+        for(let j=0;j<p.trail.length-1;j++){
+          const a=j/p.trail.length;
+          ctx.globalAlpha=a*alpha;
+          ctx.beginPath();
+          ctx.moveTo(p.trail[j].x, p.trail[j].y);
+          ctx.lineTo(p.trail[j+1].x, p.trail[j+1].y);
+          ctx.stroke();
+        }
+        // 光球
+        ctx.globalAlpha=alpha*0.9;
+        const grd=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+        grd.addColorStop(0, HSLA(p.hue,p.sat,Math.min(98,p.lig+25),alpha));
+        grd.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle=grd;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r*4,0,Math.PI*2); ctx.fill();
+        // 墨点
+        if(p.ink){
+          ctx.globalAlpha=alpha*0.8;
+          ctx.fillStyle=HSLA(p.hue,p.sat,p.lig-10,alpha*0.9);
+          ctx.beginPath();
+          ctx.arc(p.x+(Math.random()-0.5)*2, p.y+(Math.random()-0.5)*2, p.r*0.8, 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.globalAlpha=1;
+      }
+    }
+    let last=0, _raf=null;
+    function loop(t){ if(!last) last=t; const dt=Math.min(0.033,(t-last)/1000); last=t; update(dt); if(particles.length>0) _raf=requestAnimationFrame(loop); else { _raf=null; last=0; } }
+    function go(){ if(!_raf) _raf=requestAnimationFrame(loop); }
+
+    // 暴露 API
+    window.fireworkAt = (x,y,opts)=>{ spawnBloom(x,y,opts||{}); go(); };
+    window.launchFinale = function(){
+      const slots=7, marginX=120, bandW=W-marginX*2, topY=180;
+      for(let i=0;i<slots;i++){
+        const px = marginX + bandW*(i+0.5)/slots + (Math.random()*40-20);
+        const py = topY + (Math.random()*30-15);
+        setTimeout(()=>{ burst(px,py); go(); }, i*380 + Math.random()*120);
+      }
+      setTimeout(()=>{ burst(W*0.28, topY+10); go(); }, slots*380 + 600);
+      setTimeout(()=>{ burst(W*0.72, topY-6 ); go(); }, slots*380 + 1100);
+    };
+
+    window.addEventListener('resize', ()=>{
+      const dpr=Math.max(1,window.devicePixelRatio||1);
+      canvas.width=W*dpr; canvas.height=H*dpr;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    });
+  })();
+
+  // —— 覆写 collect.js 的 fireworks：在雪地页用“终章烟花” —— //
+  window.fireworks = function(){
+    try{
+      // 柔化雪
+      (function(){
+        document.querySelectorAll('.flake').forEach(f=>{
+          const d=parseFloat(getComputedStyle(f).animationDuration)||8;
+          f.style.animationDuration=(d*1.6).toFixed(2)+'s';
+          f.style.opacity='0.7';
+          if(Math.random()<0.33) f.remove();
+        });
+      })();
+      // 路灯确保点亮
+      document.getElementById('lamp')?.classList.add('on');
+      // 放烟花终章
+      window.launchFinale?.();
+    }catch(e){ console.warn(e); }
+  };
+
+  // —— “已满即在雪地页补播”检测 —— //
+  (function(){
+    const BOX = sessionStorage;
+    const STORAGE_KEY = 'demo_collected_v3';    // 与 collect.js 保持一致
+    const PAGE_FIRE_KEY = 'snow_fire_once_v1';  // 本页仅放一次，避免反复
+    function collectedCount(){
+      try{ return (JSON.parse(BOX.getItem(STORAGE_KEY)||'[]')||[]).length; }
+      catch{ return 0; }
+    }
+    function totalNeed(){
+      const t = document.querySelector('#collect-counter [data-total]');
+      return parseInt(t?.textContent||'7',10) || 7;
+    }
+    function tryPlay(){
+      if (collectedCount() >= totalNeed() && !BOX.getItem(PAGE_FIRE_KEY)){
+        BOX.setItem(PAGE_FIRE_KEY, '1');
+        // 若已定义 launchFinale，则直接使用；否则退回到 fireworks()
+        (window.launchFinale || window.fireworks)?.();
+      }
+    }
+    // 进入页面先试一次（应对在首页集齐的情况）
+    tryPlay();
+
+    // 再观察计数文本变化（以防本页继续收集触发达成）
+    const countEl = document.querySelector('#collect-counter [data-count]');
+    if (countEl){
+      const obs = new MutationObserver(()=>{ tryPlay(); if(BOX.getItem(PAGE_FIRE_KEY)) obs.disconnect(); });
+      obs.observe(countEl, {childList:true, characterData:true, subtree:true});
+    }
+  })();
+  </script>
+
+  <!-- 收集系统 -->
+  <script defer src="./js/collect.js"
+    onerror="(function(){
+      console.warn('[collect] 外部 collect.js 加载失败，启用兜底逻辑');
+      function collectTarget(el){
+        if(!el || !el.classList || !el.classList.contains('collect')) return;
+        if(el.dataset.collected==='1' || el.classList.contains('collected')) return;
+        el.dataset.collected='1'; el.classList.add('collected');
+        try{ var cnt=document.querySelector('#collect-counter [data-count]'); if(cnt){ cnt.textContent = (parseInt(cnt.textContent||'0',10)+1).toString(); } }catch(e){}
+      }
+      document.addEventListener('click', function(e){
+        var t=e.target.closest && e.target.closest('.collect'); if(!t) return; collectTarget(t);
+      }, true);
+    })()"></script>
+
+  <script>
+    // 颈部暖色脉冲
+    function neckPulse(x,y){ const world=document.getElementById('world'); const p=document.createElement('div'); p.className='pulse'; p.style.left=x+'px'; p.style.top=y+'px'; world.appendChild(p); setTimeout(()=>p.remove(), 1000); }
+  </script>
+
+</body>
+</html>
