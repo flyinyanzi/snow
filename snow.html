@@ -3,83 +3,67 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>雪地 · 渐变+矢量+流星（最小Demo）</title>
+  <title>雪地 · 渐变+矢量+流星+围巾互动</title>
   <style>
     :root{ --ink:#eef6ff; --line:rgba(255,255,255,.25); }
     *{ box-sizing:border-box; }
     html,body{ height:100%; }
-    body{ margin:0; background:#0d1228; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Hiragino Sans",sans-serif; color:var(--ink); }
+    body{ margin:0; background:#0d1228; font-family:ui-sans-serif,system-ui; color:var(--ink); }
 
-    /* 固定画布方案A：1280×720 的世界，根据屏幕等比缩放 */
     #frame{ position:relative; width:min(100vw, 100svh * 16/9); height:calc(min(100vw, 100svh * 16/9) * 9/16); margin:0 auto; overflow:hidden; }
     #world{ position:absolute; left:50%; top:50%; width:1280px; height:720px; transform-origin:center center; transform:translate(-50%, -50%) scale(1); }
 
-    /* 舞台背景：渐变天空 + 星点 + 地平线高光 */
     .stage{ position:absolute; inset:0; border-radius:24px; border:1px solid #223060; overflow:hidden; }
-    .sky{ position:absolute; inset:0; background:
-      radial-gradient(140% 80% at 50% -10%, #6aa3ff 0%, #3857a8 55%, #1b2350 80%, #0f1330 100%);
-    }
-    .stars{ position:absolute; inset:0; pointer-events:none; opacity:.8;
-      background:
-        radial-gradient(1.6px 1.6px at 12% 16%, #fff 40%, transparent 60%),
-        radial-gradient(1.8px 1.8px at 32% 28%, #fff 40%, transparent 60%),
-        radial-gradient(1.4px 1.4px at 46% 12%, #fff 40%, transparent 60%),
-        radial-gradient(1.6px 1.6px at 70% 22%, #fff 40%, transparent 60%),
-        radial-gradient(1.4px 1.4px at 86% 18%, #fff 40%, transparent 60%),
-        radial-gradient(1.2px 1.2px at 24% 44%, #fff 40%, transparent 60%),
-        radial-gradient(1.2px 1.2px at 62% 40%, #fff 40%, transparent 60%),
-        radial-gradient(1.3px 1.3px at 78% 46%, #fff 40%, transparent 60%);
+    .sky{ position:absolute; inset:0; background:radial-gradient(140% 80% at 50% -10%, #6aa3ff 0%, #3857a8 55%, #1b2350 80%, #0f1330 100%); }
+    .stars{ position:absolute; inset:0; pointer-events:none; opacity:.8; background:
+      radial-gradient(1.6px 1.6px at 12% 16%, #fff 40%, transparent 60%),
+      radial-gradient(1.8px 1.8px at 32% 28%, #fff 40%, transparent 60%),
+      radial-gradient(1.4px 1.4px at 46% 12%, #fff 40%, transparent 60%),
+      radial-gradient(1.6px 1.6px at 70% 22%, #fff 40%, transparent 60%),
+      radial-gradient(1.4px 1.4px at 86% 18%, #fff 40%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 24% 44%, #fff 40%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 62% 40%, #fff 40%, transparent 60%),
+      radial-gradient(1.3px 1.3px at 78% 46%, #fff 40%, transparent 60%);
     }
     .groundGlow{ position:absolute; left:-80px; right:-80px; bottom:-80px; height:380px; background: radial-gradient(60% 60% at 50% 10%, rgba(255,255,255,.55), rgba(255,255,255,.12) 70%, transparent 80%); }
 
-    /* 右上角按钮与计数 */
     .ui{ position:absolute; right:16px; top:16px; display:flex; gap:8px; z-index:5; }
     .btn{ appearance:none; border:1px solid var(--line); border-radius:10px; padding:8px 12px; background:#ffffff20; color:#fff; cursor:pointer; }
     #collect-counter{ position:absolute; left:16px; top:16px; background:#0006; border:1px solid var(--line); border-radius:10px; padding:6px 10px; font:14px/1.2 system-ui; z-index:5; }
 
-    /* 可收集元素（矢量按钮，px 定位在 1280×720 画布上） */
     .collect{ position:absolute; background:transparent; border:0; cursor:pointer; }
 
-    /* —— 路灯（左侧）初始熄灭 / 亮起时加 .on —— */
-    .lamp{ left:220px; top:420px; width:90px; height:220px; }
+    /* 路灯：调高、加过渡 */
+    .lamp{ left:220px; top:380px; width:100px; height:260px; }
     .lamp svg{ width:100%; height:100%; display:block; }
-    /* 柔和过渡：灯芯颜色 + 光晕显隐 */
-    .lamp svg #bulb{ transition: fill .6s ease, filter .6s ease; filter:none; }
-    .lamp.on svg #bulb{ fill:#ffd57e; filter: drop-shadow(0 0 6px rgba(255,216,140,.6)); }
-    .lamp svg #glow{ transition: opacity .8s ease; }
+    .lamp svg #bulb{ transition: fill .6s ease, filter .6s ease; fill:#3a4e7a; filter:none; }
+    .lamp.on svg #bulb{ fill:#ffd57e; filter: drop-shadow(0 0 8px rgba(255,216,140,.8)); }
+    .lamp svg #glow{ opacity:0; transition: opacity .8s ease; }
     .lamp.on svg #glow{ opacity:1; }
 
-    /* —— 围巾（中部） —— */
-    .scarf{ left:760px; top:470px; width:160px; height:90px; }
-    .scarf svg{ width:100%; height:100%; display:block; }
+    /* 围巾互动 */
+    .couple-wrap{ position:absolute; inset:0; pointer-events:auto; }
+    .couple-img{ position:absolute; transform:translate(-50%,-50%); opacity:0; transition:opacity .6s ease; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); pointer-events:none; }
+    .couple-img.show{ opacity:1; }
+    #gestureCanvas{ position:absolute; transform:translate(-50%,-50%); pointer-events:auto; opacity:0; transition:opacity .4s ease; z-index:2; }
+    .scarf-btn{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; padding:0; opacity:0; pointer-events:none; transition:opacity .5s ease; z-index:3; }
+    .scarf-btn img{ width:100%; height:auto; display:block; filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+    .scarf-btn.unlock{ opacity:1; pointer-events:auto; }
+    .scarf-hint{ position:absolute; transform:translate(-50%,-50%); color:#fff; opacity:0; font:16px/1.4 system-ui; background:#0007; border:1px solid rgba(255,255,255,.25); padding:6px 10px; border-radius:10px; pointer-events:none; transition:opacity .5s ease; z-index:4; }
+    .scarf-hint.show{ opacity:1; }
+    .heart-hotspot{ position:absolute; transform:translate(-50%,-50%); cursor:pointer; pointer-events:auto; z-index:5; }
 
-    /* —— 蝴蝶（右上，轻微振翼） —— */
-    .butterfly{ left:980px; top:200px; width:84px; height:60px; }
-    .butterfly svg{ width:100%; height:100%; display:block; }
-    .butterfly{ animation: flutter 2.2s ease-in-out infinite; transform-origin:center; }
-    @keyframes flutter{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-4px) } }
-
-    /* 飘雪（可保留/可关闭） */
     .snow{ position:absolute; inset:0; pointer-events:none; }
     .flake{ position:absolute; top:-10px; width:6px; height:6px; border-radius:50%; background:#fff; opacity:.85; filter:blur(.2px); animation: fall linear infinite; }
     @keyframes fall{ to { transform: translateY(820px) translateX(var(--dx, 0px)); opacity:.95; } }
 
-    /* Canvas 特效层（流星） */
     #fx{ position:absolute; left:0; top:0; width:1280px; height:720px; pointer-events:none; }
 
-    /* 开发：Shift+D 显示热点边框（可选） */
-    .debug .collect{ outline:2px dashed rgba(255,180,0,.7); background:rgba(255,180,0,.06); }
-    /* —— 围巾互动样式 —— */
-    .couple-wrap{ position:absolute; inset:0; pointer-events:none; }
-    .couple-img{ position:absolute; transform:translate(-50%,-50%); opacity:0; transition:opacity .6s ease; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); pointer-events:auto; }
-    .couple-img.show{ opacity:1; }
-    #gestureCanvas{ position:absolute; transform:translate(-50%,-50%); pointer-events:auto; opacity:0; transition:opacity .4s ease; }
-    .scarf-btn{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; padding:0; opacity:0; pointer-events:none; transition:opacity .5s ease; }
-    .scarf-btn img{ width:100%; height:100%; display:block; filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
-    .scarf-btn.unlock{ opacity:1; pointer-events:auto; }
-    .scarf-hint{ position:absolute; transform:translate(-50%,-50%); color:#fff; opacity:0; font:16px/1.4 system-ui; background:#0007; border:1px solid rgba(255,255,255,.25); padding:6px 10px; border-radius:10px; pointer-events:none; transition:opacity .5s ease; }
-    .scarf-hint.show{ opacity:1; }
-    .heart-hotspot{ position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; pointer-events:auto; cursor:pointer; }
+    #hintText{ position:absolute; left:50%; top:65%; transform:translateX(-50%); color:#fff; font:18px/1.4 "KaiTi",serif; opacity:0; pointer-events:none; transition:opacity 1s ease; white-space:nowrap; z-index:10; }
+
+    /* 围巾解锁时颈部暖色脉冲 */
+    .pulse{ position:absolute; left:0; top:0; width:160px; height:160px; border-radius:50%; pointer-events:none; background:radial-gradient(circle at center, rgba(255,220,140,.6), rgba(255,220,140,.25) 40%, rgba(255,220,140,0) 70%); filter:blur(2px); opacity:0; transform:translate(-50%, -50%) scale(.6); animation:pulseOut .9s ease-out forwards; }
+    @keyframes pulseOut{ 0%{ opacity:.0; transform:translate(-50%,-50%) scale(.6);} 20%{opacity:.9;} 100%{ opacity:0; transform:translate(-50%,-50%) scale(1.6);} }
   </style>
 </head>
 <body>
@@ -99,49 +83,42 @@
         <button class="btn" data-reset-collect>清空进度</button>
       </div>
 
-      <!-- ====== 矢量元素（可收集） ====== -->
-      <!-- 路灯（初始熄灭：无 .on） -->
+      <!-- 路灯（更高更大） -->
       <button id="lamp" class="collect lamp" data-id="snow-lamp" aria-label="雪地路灯">
-        <svg viewBox="0 0 90 220" aria-hidden="true">
-          <!-- 灯体 + 柔和过渡：用具体节点控制，而不是 CSS 变量，便于 transition -->
-          <rect x="42" y="40" width="6" height="150" rx="3" fill="#93a1e8"/>
-          <circle cx="45" cy="36" r="14" fill="#c7d1ff" stroke="#93a1e8"/>
-          <circle id="bulb" cx="45" cy="36" r="6" fill="#3a4e7a"/>
-          <!-- 光晕用可过渡的不透明度控制 -->
-          <g id="glow" opacity="0">
+        <svg viewBox="0 0 100 260" aria-hidden="true">
+          <rect x="47" y="50" width="6" height="180" rx="3" fill="#93a1e8"/>
+          <circle cx="50" cy="44" r="16" fill="#c7d1ff" stroke="#93a1e8"/>
+          <circle id="bulb" cx="50" cy="44" r="7"/>
+          <g id="glow">
             <radialGradient id="lampGlow" cx="50%" cy="20%" r="60%">
               <stop offset="0%" stop-color="#ffe8a6" stop-opacity="1"/>
               <stop offset="100%" stop-color="#ffe8a6" stop-opacity="0"/>
             </radialGradient>
-            <ellipse cx="45" cy="70" rx="60" ry="60" fill="url(#lampGlow)"/>
+            <ellipse cx="50" cy="80" rx="70" ry="70" fill="url(#lampGlow)"/>
           </g>
         </svg>
       </button>
 
-      <!-- 围巾互动 · 四步法 -->
-      <div id="couple-wrap" class="couple-wrap" aria-label="围巾互动区">
-        <!-- 抱心女孩（初始显示） -->
-        <img id="girl1" class="couple-img show" src="./assets/girl_heart.png" alt="抱着红心的女孩"
-             style="left:640px; top:360px; width:400px; height:auto;">
-        <!-- 拥抱的两人（点击心后显示） -->
-        <img id="couple2" class="couple-img" src="./assets/couple_hug.png" alt="拥抱的两人"
-             style="left:640px; top:360px; width:400px; height:auto;">
-        <!-- 围巾（解锁后显示在颈部位置） -->
-        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" aria-label="同一条围巾"
-                style="left:640px; top:440px; width:280px; height:auto;">
-          <img src="./assets/scarf_link.png" alt="围在两人脖子上的围巾"/>
+      <!-- 围巾互动（人物缩小以配比例） -->
+      <div id="couple-wrap" class="couple-wrap">
+        <img id="girl1" class="couple-img show" src="./assets/girl_heart.png" style="left:640px; top:360px; width:340px; height:auto;">
+        <img id="couple2" class="couple-img" src="./assets/couple_hug.png" style="left:640px; top:360px; width:340px; height:auto;">
+        <button id="scarfBtn" class="collect scarf-btn" data-id="snow-scarf" style="left:640px; top:430px; width:240px; height:auto;">
+          <img src="./assets/scarf_link.png"/>
         </button>
-        <!-- 提示文案 -->
         <div id="scarfHint" class="scarf-hint" style="left:640px; top:600px;">给 ta 们系上同一条围巾吧</div>
-        <!-- 点击心形的热区（可调整位置大小） -->
-        <button id="heartHotspot" class="heart-hotspot" aria-label="点击红心"
-                style="left:780px; top:420px; width:80px; height:80px;"></button>
-        <!-- 手势画布：覆盖两人颈部区域，用于检测绕圈动作 -->
+        <!-- 心形命中区域用 SVG path，更贴合形状 -->
+        <svg id="heartHotspot" class="heart-hotspot" width="90" height="90" viewBox="0 0 100 100" style="left:780px; top:420px;">
+          <path id="heartPath" d="M50 84 L20 54 C9 43 9 25 23 16 C31 11 42 12 49 19 C56 12 67 11 75 16 C89 25 91 43 80 54 Z" fill="rgba(255,0,0,0.001)" stroke="transparent" />
+        </svg>
         <canvas id="gestureCanvas" width="400" height="240" style="left:640px; top:360px;"></canvas>
       </div>
-      <!-- 蝴蝶（收集 + 触发流星→点亮路灯） -->
-      <button id="butterfly" class="collect butterfly" data-id="snow-butterfly" data-keepcolor="1" aria-label="蝴蝶">
-        <svg viewBox="0 0 84 60" aria-hidden="true">
+
+      <div id="hintText">蝴蝶化作流星划过天际，路灯亮了。</div>
+
+      <!-- 蝴蝶（右上角） -->
+      <button id="butterfly" class="collect" style="left:980px; top:200px; width:84px; height:60px;">
+        <svg viewBox="0 0 84 60" aria-hidden="true" width="84" height="60">
           <defs>
             <linearGradient id="wingL" x1="0" x2="1" y1="0" y2="1">
               <stop offset="0%" stop-color="#aee5ff"/>
@@ -169,215 +146,167 @@
       const frame = document.getElementById('frame');
       const world = document.getElementById('world');
       function layout(){
-        const vw = Math.max(document.documentElement.clientWidth,  window.innerWidth  || 0);
-        const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
-        const w = Math.min(vw, vh * 16/9);
-        const h = w * 9/16;
-        frame.style.width = w + 'px';
-        frame.style.height = h + 'px';
+        const vw = window.innerWidth; const vh = window.innerHeight;
+        const w = Math.min(vw, vh * 16/9); const h = w * 9/16;
+        frame.style.width = w + 'px'; frame.style.height = h + 'px';
         const scale = Math.min(w / DESIGN_W, h / DESIGN_H);
         world.style.transform = `translate(-50%, -50%) scale(${scale})`;
       }
-      layout();
-      window.addEventListener('resize', layout);
-      window.addEventListener('orientationchange', layout);
+      layout(); window.addEventListener('resize', layout); window.addEventListener('orientationchange', layout);
     })();
   </script>
 
-  <!-- ===== 围巾互动脚本：点击心 → 显示拥抱图 + 提示；绕圈手势 → 解锁围巾按钮（点击收集） ===== -->
   <script>
-    (function(){
-      const girl1 = document.getElementById('girl1');
-      const couple2 = document.getElementById('couple2');
-      const heart = document.getElementById('heartHotspot');
-      const hint = document.getElementById('scarfHint');
-      const canvas = document.getElementById('gestureCanvas');
-      const scarfBtn = document.getElementById('scarfBtn');
-      const ctx = canvas.getContext('2d');
-      let phase = 1; // 1=女孩 2=拥抱(等待手势) 3=解锁
-
-      // 点击红心：切换到拥抱图 + 提示 + 显示手势画布
-      heart.addEventListener('click', ()=>{
-        if(phase!==1) return;
-        girl1.classList.remove('show');
-        couple2.classList.add('show');
-        hint.classList.add('show');
-        canvas.style.opacity = 1;
-        phase = 2;
-      });
-
-      // 手势识别：围绕中心累计角度到达阈值即解锁
-      // 取画布中心稍偏上的点作为颈部中心（可根据素材微调）
-      const center = { x: canvas.width/2, y: canvas.height/2 - 10 };
-      let tracking = false, lastAngle = null, sumAngle = 0; // 累计角度（弧度）
-
-      function start(pointer){ tracking = true; lastAngle = angleOf(pointer); drawDot(pointer); }
-      function move(pointer){ if(!tracking || phase!==2) return; const a = angleOf(pointer); if(lastAngle==null){ lastAngle=a; return; }
-        let delta = a - lastAngle; // 处理跨 -π/π 跳变
-        if(delta > Math.PI) delta -= Math.PI*2; else if(delta < -Math.PI) delta += Math.PI*2;
-        // 只在手指处于合适半径时计入（颈部环）
-        const r = dist(pointer, center);
-        if(r>40 && r<110){ sumAngle += Math.abs(delta); drawTrail(pointer); }
-        lastAngle = a;
-        if(sumAngle >= Math.PI * 1.6){ unlockScarf(); }
-      }
-      function end(){ tracking = false; lastAngle = null; }
-
-      function angleOf(p){ return Math.atan2(p.y - center.y, p.x - center.x); }
-      function dist(p, c){ const dx=p.x-c.x, dy=p.y-c.y; return Math.hypot(dx,dy); }
-
-      // 简单可视反馈
-      function drawDot(p){ ctx.fillStyle = 'rgba(180,210,255,.6)'; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); }
-      function drawTrail(p){ ctx.strokeStyle = 'rgba(170,210,255,.6)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineTo(p.x,p.y); ctx.stroke(); }
-
-      // 指针事件（触摸/鼠标）
-      function local(evt){ const rect = canvas.getBoundingClientRect(); const x = (evt.clientX - rect.left) * (canvas.width/rect.width); const y = (evt.clientY - rect.top) * (canvas.height/rect.height); return {x,y}; }
-      canvas.addEventListener('pointerdown', e=>{ if(phase!==2) return; ctx.beginPath(); start(local(e)); });
-      canvas.addEventListener('pointermove', e=> move(local(e)) );
-      window.addEventListener('pointerup', end);
-      window.addEventListener('pointercancel', end);
-
-      function unlockScarf(){
-        if(phase!==2) return;
-        phase = 3;
-        hint.classList.remove('show');
-        canvas.style.opacity = 0;
-        scarfBtn.classList.add('unlock'); // 显示围巾按钮（点击 = 收集成功）
-      }
-    })();
-  </script>
-
-  <!-- 飘雪 & 流星特效 -->
-  <script>
-    // —— (1) 飘雪 ——
+    // 飘雪
     (function(){
       const container = document.getElementById('snow');
       const FLAKES = 70;
       for(let i=0;i<FLAKES;i++){
-        const f = document.createElement('div');
-        f.className = 'flake';
-        const size = Math.random()*4 + 2;
-        const left = Math.random()*1280;
-        const dur = Math.random()*6 + 6;
-        const delay = Math.random()*-12;
-        const dx = (Math.random()*80 - 40)+'px';
-        f.style.width = f.style.height = size+'px';
-        f.style.left = left+'px';
-        f.style.animationDuration = dur+'s';
-        f.style.animationDelay = delay+'s';
-        f.style.setProperty('--dx', dx);
-        container.appendChild(f);
+        const f=document.createElement('div'); f.className='flake';
+        const size=Math.random()*4+2; const left=Math.random()*1280;
+        const dur=Math.random()*6+6; const delay=Math.random()*-12;
+        const dx=(Math.random()*80-40)+'px';
+        f.style.width=f.style.height=size+'px'; f.style.left=left+'px';
+        f.style.animationDuration=dur+'s'; f.style.animationDelay=delay+'s';
+        f.style.setProperty('--dx',dx); container.appendChild(f);
       }
     })();
 
-    // —— (2) 流星：返回 Promise，结束于左下角并消失 ——
+    // 流星（修复残影：空时继续淡出几帧后清屏）
     (function(){
-      const canvas = document.getElementById('fx');
-      const ctx = canvas.getContext('2d');
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      canvas.width = 1280 * dpr; canvas.height = 720 * dpr; ctx.scale(dpr, dpr);
-
-      let meteors = []; let raf = null;
-
+      const canvas=document.getElementById('fx'); const ctx=canvas.getContext('2d');
+      const dpr=Math.max(1,window.devicePixelRatio||1);
+      canvas.width=1280*dpr; canvas.height=720*dpr; ctx.scale(dpr,dpr);
+      let meteors=[]; let raf=null; let fadeFrames=0;
       function loop(){
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(15,20,50,0.35)';
-        ctx.fillRect(0,0,1280,720);
-        ctx.globalCompositeOperation = 'lighter';
-
+        ctx.globalCompositeOperation='destination-out';
+        ctx.fillStyle='rgba(15,20,50,0.35)'; ctx.fillRect(0,0,1280,720);
+        ctx.globalCompositeOperation='lighter';
         for(let i=meteors.length-1;i>=0;i--){
-          const m = meteors[i];
-          m.x += m.vx; m.y += m.vy; m.life -= 0.016;
-          m.vx *= 0.997; m.vy *= 1.001;
-          m.history.push({x:m.x, y:m.y}); if(m.history.length>20) m.history.shift();
-
+          const m=meteors[i]; m.x+=m.vx; m.y+=m.vy; m.life-=0.016;
+          m.vx*=0.997; m.vy*=1.001;
+          m.history.push({x:m.x,y:m.y}); if(m.history.length>20) m.history.shift();
           for(let j=0;j<m.history.length-1;j++){
-            const p1 = m.history[j], p2 = m.history[j+1];
-            const alpha = j / m.history.length;
-            ctx.strokeStyle = `rgba(${m.color[0]},${m.color[1]},${m.color[2]},${alpha*0.7})`;
-            ctx.lineWidth = Math.max(1, 4 * alpha);
+            const p1=m.history[j], p2=m.history[j+1];
+            const alpha=j/m.history.length;
+            ctx.strokeStyle=`rgba(${m.color[0]},${m.color[1]},${m.color[2]},${alpha*0.7})`;
+            ctx.lineWidth=Math.max(1,4*alpha);
             ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
           }
-          const grd = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 14);
-          grd.addColorStop(0, `rgba(${m.color[0]},${m.color[1]},${m.color[2]},1)`);
-          grd.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(m.x, m.y, 14, 0, Math.PI*2); ctx.fill();
-
-          // 结束：到左下角区域或寿命到
-          if(m.life<=0 || m.x<-40 || m.y>700){
-            const done = m.done; meteors.splice(i,1); if(done) done();
-          }
+          const grd=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,14);
+          grd.addColorStop(0,`rgba(${m.color[0]},${m.color[1]},${m.color[2]},1)`);
+          grd.addColorStop(1,'rgba(255,255,255,0)');
+          ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(m.x,m.y,14,0,Math.PI*2); ctx.fill();
+          if(m.life<=0||m.x<-60||m.y>720){ const done=m.done; meteors.splice(i,1); if(done)done(); }
         }
-        if(meteors.length===0){ cancelAnimationFrame(raf); raf=null; return; }
-        raf = requestAnimationFrame(loop);
+        if(meteors.length===0){
+          if(fadeFrames++>18){ // 约300ms 的额外淡出
+            ctx.clearRect(0,0,1280,720); cancelAnimationFrame(raf); raf=null; fadeFrames=0; return;
+          }
+        } else { fadeFrames=0; }
+        raf=requestAnimationFrame(loop);
       }
-
-      // Promise 版：spawnMeteor(sx,sy).then(()=>{ 点亮路灯 })
-      window.spawnMeteor = function(sx, sy, color='cool'){
+      window.spawnMeteor=function(sx,sy,color='cool'){
         return new Promise(resolve=>{
-          const palette = color==='warm' ? [255,210,120] : [170,210,255];
-          const m = { x:sx, y:sy, vx:-10 - Math.random()*4, vy:6 + Math.random()*2, life:1.3, color:palette, history:[], done:resolve };
-          m.history.push({x:m.x, y:m.y}); meteors.push(m);
-          if(!raf) raf = requestAnimationFrame(loop);
+          const palette=color==='warm'?[255,210,120]:[170,210,255];
+          const m={x:sx,y:sy,vx:-10-Math.random()*4,vy:6+Math.random()*2,life:1.3,color:palette,history:[],done:resolve};
+          m.history.push({x:m.x,y:m.y}); meteors.push(m);
+          if(!raf)raf=requestAnimationFrame(loop);
         });
       }
     })();
-  </script>
 
-  <!-- 点击蝴蝶：收集 & 划过流星 → 点亮路灯 -->
-  <script>
-    const butterfly = document.getElementById('butterfly');
-    const lamp = document.getElementById('lamp');
-    butterfly.addEventListener('click', () => {
-      const rect = butterfly.getBoundingClientRect();
-      const worldRect = document.getElementById('world').getBoundingClientRect();
-      const scale = worldRect.width / 1280;
-      const sx = (rect.left - worldRect.left + rect.width*0.7) / scale; // 稍靠右
-      const sy = (rect.top - worldRect.top) / scale - 40;               // 上方
-      window.spawnMeteor(sx, sy, 'cool').then(()=>{
-        // 流星完成后点亮路灯 + 柔化雪
+    // 蝴蝶点击：流星→点灯→柔雪+提示
+    const butterfly=document.getElementById('butterfly');
+    const lamp=document.getElementById('lamp');
+    butterfly.addEventListener('click',()=>{
+      const rect=butterfly.getBoundingClientRect();
+      const worldRect=document.getElementById('world').getBoundingClientRect();
+      const scale=worldRect.width/1280;
+      const sx=(rect.left-worldRect.left+rect.width*0.7)/scale;
+      const sy=(rect.top-worldRect.top)/scale-40;
+      window.spawnMeteor(sx,sy,'cool').then(()=>{
         lamp.classList.add('on');
         softenSnow();
+        setTimeout(showHint,600);
       });
     });
 
-    // 开发辅助：Shift+D 切换热点可视化
-    document.addEventListener('keydown', (e)=>{
-      if(e.shiftKey && e.key.toLowerCase()==='d'){
-        document.getElementById('world').classList.toggle('debug');
-      }
-    });
-    </script>
-
-  <script>
-    // 柔化雪：减速 & 适度减量 & 降低不透明度
     function softenSnow(){
-      const flakes = Array.from(document.querySelectorAll('.flake'));
-      flakes.forEach((f,i)=>{
-        const dur = parseFloat(getComputedStyle(f).animationDuration) || 8;
-        f.style.animationDuration = (dur * 1.6).toFixed(2) + 's';
-        f.style.opacity = '0.7';
-        // 随机移除部分雪花，保留 2/3
-        if (Math.random() < 0.33) f.remove();
+      const flakes=document.querySelectorAll('.flake');
+      flakes.forEach(f=>{
+        const dur=parseFloat(getComputedStyle(f).animationDuration)||8;
+        f.style.animationDuration=(dur*1.6).toFixed(2)+'s';
+        f.style.opacity='0.7';
+        if(Math.random()<0.33)f.remove();
       });
     }
+    function showHint(){ const h=document.getElementById('hintText'); h.style.opacity=1; setTimeout(()=>{h.style.opacity=0;},2600); }
+
+    // 围巾互动脚本（心形 SVG path 命中 + 绕圈解锁 + 围巾像素命中）
+    (function(){
+      const girl1=document.getElementById('girl1');
+      const couple2=document.getElementById('couple2');
+      const heartSVG=document.getElementById('heartHotspot');
+      const heartPath=document.getElementById('heartPath');
+      const hint=document.getElementById('scarfHint');
+      const canvas=document.getElementById('gestureCanvas');
+      const scarfBtn=document.getElementById('scarfBtn');
+      const ctx=canvas.getContext('2d');
+      let phase=1; let tracking=false,lastAngle=null,sumAngle=0;
+
+      // 心形 path 命中：用 isPointInFill 做精确命中
+      heartSVG.addEventListener('click',(e)=>{
+        if(phase!==1) return;
+        const pt=heartSVG.createSVGPoint(); pt.x=e.offsetX; pt.y=e.offsetY;
+        const m=heartPath.getScreenCTM().inverse();
+        const local=pt.matrixTransform(m);
+        const p=new Path2D(heartPath.getAttribute('d'));
+        const c=document.createElement('canvas'); c.width=100; c.height=100; const _ctx=c.getContext('2d');
+        _ctx.fill(p);
+        if(_ctx.isPointInPath(p, local.x, local.y)){
+          girl1.classList.remove('show');
+          couple2.classList.add('show');
+          hint.classList.add('show');
+          canvas.style.opacity=1;
+          phase=2;
+        }
+      });
+
+      // 手势识别
+      const center={ x: canvas.width/2, y: canvas.height/2 - 10 };
+      function angleOf(p){ return Math.atan2(p.y - center.y, p.x - center.x); }
+      function dist(p,c){ return Math.hypot(p.x-c.x,p.y-c.y); }
+      function local(evt){ const rect=canvas.getBoundingClientRect(); const x=(evt.clientX-rect.left)*(canvas.width/rect.width); const y=(evt.clientY-rect.top)*(canvas.height/rect.height); return {x,y}; }
+      function start(p){ tracking=true; lastAngle=angleOf(p); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
+      function move(p){ if(!tracking||phase!==2) return; const a=angleOf(p); let d=a-lastAngle; if(d>Math.PI)d-=Math.PI*2; else if(d<-Math.PI)d+=Math.PI*2; const r=dist(p,center); if(r>40&&r<110){ sumAngle+=Math.abs(d); ctx.strokeStyle='rgba(170,210,255,.6)'; ctx.lineWidth=3; ctx.lineTo(p.x,p.y); ctx.stroke(); } lastAngle=a; if(sumAngle>=Math.PI*1.6){ unlockScarf(); } }
+      function end(){ tracking=false; lastAngle=null; }
+      canvas.addEventListener('pointerdown', e=>{ if(phase!==2) return; start(local(e)); });
+      canvas.addEventListener('pointermove', e=> move(local(e)) );
+      window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+
+      function unlockScarf(){ if(phase!==2)return; phase=3; hint.classList.remove('show'); canvas.style.opacity=0; scarfBtn.classList.add('unlock'); neckPulse(640,430); }
+
+      // 围巾按钮像素命中（透明像素不算点击）
+      (function(){
+        const imgEl = scarfBtn.querySelector('img');
+        const off=document.createElement('canvas'); const ictx=off.getContext('2d'); let natW=0,natH=0;
+        function draw(){ natW=imgEl.naturalWidth; natH=imgEl.naturalHeight; off.width=natW; off.height=natH; ictx.clearRect(0,0,natW,natH); ictx.drawImage(imgEl,0,0); }
+        imgEl.addEventListener('load', draw); if(imgEl.complete) draw();
+        scarfBtn.addEventListener('click',(e)=>{
+          const rect=scarfBtn.getBoundingClientRect(); const x=(e.clientX-rect.left)/rect.width*natW; const y=(e.clientY-rect.top)/rect.height*natH; const a=ictx.getImageData(Math.max(0,Math.floor(x)), Math.max(0,Math.floor(y)),1,1).data[3]; if(a<10){ e.stopPropagation(); e.preventDefault(); }
+        }, true);
+      })();
+    })();
+
+    // 颈部暖色脉冲：在世界坐标 (x,y) 生成一次性脉冲
+    function neckPulse(x,y){ const world=document.getElementById('world'); const p=document.createElement('div'); p.className='pulse'; p.style.left=x+'px'; p.style.top=y+'px'; world.appendChild(p); setTimeout(()=>p.remove(), 1000); }
+
+    // 开发辅助：Shift+D 显示调试边框
+    document.addEventListener('keydown',(e)=>{ if(e.shiftKey && e.key.toLowerCase()==='d'){ document.getElementById('world').classList.toggle('debug'); } });
   </script>
 
-  <style>
-    #hintText{ position:absolute; left:50%; top:65%; transform:translateX(-50%); color:#fff; font:18px/1.4 "KaiTi",serif; opacity:0; pointer-events:none; transition:opacity 1s ease; white-space:nowrap; }
-  </style>
-
-  <div id="hintText">蝴蝶化作流星划过天际，路灯亮了。</div>
-
-  <script>
-    function showHint(){
-      const h=document.getElementById('hintText');
-      h.style.opacity=1;
-      setTimeout(()=>{ h.style.opacity=0; }, 2600);
-    }
-  </script>
-
-  <!-- 收集脚本（会话内计数 / 你现有的 v3.1 即可） -->
+  <!-- 收集脚本（会话内计数） -->
   <script defer src="./js/collect.js"></script>
 </body>
 </html>
